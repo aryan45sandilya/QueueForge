@@ -1,0 +1,109 @@
+# Local / single-host deployment of the full stack.
+#   cp .env.example .env   # then set QF_SECRET_KEY
+#   docker compose up --build
+# Dashboard: http://localhost:3000   API docs: http://localhost:8000/api/docs
+
+x-backend: &backend
+  build: ./backend
+  image: queueforge-backend:local
+  restart: unless-stopped
+  environment: &backend-env
+    QF_ENV: ${QF_ENV:-development}
+    QF_DATABASE_URL: postgresql+asyncpg://queueforge:${POSTGRES_PASSWORD:-queueforge}@postgres:5432/queueforge
+    QF_REDIS_URL: redis://redis:6379/0
+    QF_SECRET_KEY: ${QF_SECRET_KEY:?Set QF_SECRET_KEY in .env (see .env.example)}
+    QF_CORS_ORIGINS: ${QF_CORS_ORIGINS:-http://localhost:3000}
+    QF_COOKIE_SECURE: ${QF_COOKIE_SECURE:-false}
+    QF_LOG_FORMAT: ${QF_LOG_FORMAT:-json}
+    QF_LOG_LEVEL: ${QF_LOG_LEVEL:-INFO}
+    QF_DEMO_PASSWORD: ${QF_DEMO_PASSWORD:-queueforge-demo}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: queueforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-queueforge}
+      POSTGRES_DB: queueforge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U queueforge -d queueforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF persistence shortens recovery, but QueueForge does not depend on it: the reconciler
+    # rebuilds dispatch state from PostgreSQL after any Redis data loss.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["queueforge", "migrate"]
+
+  api:
+    <<: *backend
+    command: ["queueforge", "api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    <<: *backend
+    command: ["queueforge", "worker"]
+    environment:
+      <<: *backend-env
+      QF_WORKER_CONCURRENCY: ${QF_WORKER_CONCURRENCY:-8}
+    deploy:
+      replicas: 2
+    stop_grace_period: 30s
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    <<: *backend
+    command: ["queueforge", "scheduler"]
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        QF_API_URL: http://api:8000
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:

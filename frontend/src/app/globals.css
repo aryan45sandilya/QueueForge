@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/*
+ * QueueForge design tokens.
+ * Palette: paper #F3F0E7, forest ink #202820, oxidized copper #C56D4B, muted sage #87917A,
+ * ochre #D7B96D. Neutrals are derived from paper and ink. Copper is reserved for primary
+ * actions and selection; copper-strong is used where text sits on or in copper (AA contrast).
+ * Status colours are separate from chart series colours and always ship with a text label.
+ */
+:root {
+  --qf-paper: #f3f0e7;
+  --qf-surface: #fbf9f3;
+  --qf-sunken: #ebe7da;
+  --qf-line: #d9d3c3;
+  --qf-line-strong: #bdb6a3;
+  --qf-ink: #202820;
+  --qf-ink-2: #454d43;
+  --qf-muted: #636a5d;
+  --qf-copper: #c56d4b;
+  --qf-copper-strong: #9f4e2e;
+  --qf-copper-tint: #f2dfd4;
+  --qf-sage: #87917a;
+  --qf-sage-tint: #e3e6dc;
+  --qf-ochre: #d7b96d;
+  --qf-ochre-tint: #f3e8c8;
+  --qf-focus: #c56d4b;
+
+  /* status: text colour on tint background */
+  --qf-ok: #2d6a45;
+  --qf-ok-tint: #dcebdf;
+  --qf-run: #00665c;
+  --qf-run-tint: #d5ebe6;
+  --qf-warn: #7a5a10;
+  --qf-warn-tint: #f3e8c8;
+  --qf-bad: #a2361f;
+  --qf-bad-tint: #f5ddd5;
+  --qf-idle: #555c50;
+  --qf-idle-tint: #e6e3d8;
+
+  /* chart series (validated for CVD separation against --qf-surface) */
+  --qf-series-a: #008571;
+  --qf-series-b: #dc6a3a;
+  --qf-series-ink: #202820;
+  --qf-grid: #e4dfd1;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --qf-paper: #141813;
+    --qf-surface: #1b201b;
+    --qf-sunken: #111410;
+    --qf-line: #2e352d;
+    --qf-line-strong: #46503f;
+    --qf-ink: #ebe7da;
+    --qf-ink-2: #c9c5b8;
+    --qf-muted: #9aa092;
+    --qf-copper: #e08a66;
+    --qf-copper-strong: #e89a78;
+    --qf-copper-tint: #3a2419;
+    --qf-sage: #8f9a82;
+    --qf-sage-tint: #262d24;
+    --qf-ochre: #d7b96d;
+    --qf-ochre-tint: #362e17;
+    --qf-focus: #e08a66;
+    --qf-ok: #7cc79a;
+    --qf-ok-tint: #1c2e22;
+    --qf-run: #5fc4b4;
+    --qf-run-tint: #15302c;
+    --qf-warn: #e3c574;
+    --qf-warn-tint: #352d15;
+    --qf-bad: #ef8f78;
+    --qf-bad-tint: #3a1f18;
+    --qf-idle: #b4b8aa;
+    --qf-idle-tint: #262b24;
+    --qf-series-a: #2ba58e;
+    --qf-series-b: #e06a3a;
+    --qf-series-ink: #ebe7da;
+    --qf-grid: #283027;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --qf-paper: #141813;
+  --qf-surface: #1b201b;
+  --qf-sunken: #111410;
+  --qf-line: #2e352d;
+  --qf-line-strong: #46503f;
+  --qf-ink: #ebe7da;
+  --qf-ink-2: #c9c5b8;
+  --qf-muted: #9aa092;
+  --qf-copper: #e08a66;
+  --qf-copper-strong: #e89a78;
+  --qf-copper-tint: #3a2419;
+  --qf-sage: #8f9a82;
+  --qf-sage-tint: #262d24;
+  --qf-ochre-tint: #362e17;
+  --qf-focus: #e08a66;
+  --qf-ok: #7cc79a;
+  --qf-ok-tint: #1c2e22;
+  --qf-run: #5fc4b4;
+  --qf-run-tint: #15302c;
+  --qf-warn: #e3c574;
+  --qf-warn-tint: #352d15;
+  --qf-bad: #ef8f78;
+  --qf-bad-tint: #3a1f18;
+  --qf-idle: #b4b8aa;
+  --qf-idle-tint: #262b24;
+  --qf-series-a: #2ba58e;
+  --qf-series-b: #e06a3a;
+  --qf-series-ink: #ebe7da;
+  --qf-grid: #283027;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--qf-paper);
+  --color-surface: var(--qf-surface);
+  --color-sunken: var(--qf-sunken);
+  --color-line: var(--qf-line);
+  --color-line-strong: var(--qf-line-strong);
+  --color-ink: var(--qf-ink);
+  --color-ink-2: var(--qf-ink-2);
+  --color-muted: var(--qf-muted);
+  --color-copper: var(--qf-copper);
+  --color-copper-strong: var(--qf-copper-strong);
+  --color-copper-tint: var(--qf-copper-tint);
+  --color-sage: var(--qf-sage);
+  --color-sage-tint: var(--qf-sage-tint);
+  --color-ochre: var(--qf-ochre);
+  --color-ochre-tint: var(--qf-ochre-tint);
+  --color-ok: var(--qf-ok);
+  --color-ok-tint: var(--qf-ok-tint);
+  --color-run: var(--qf-run);
+  --color-run-tint: var(--qf-run-tint);
+  --color-warn: var(--qf-warn);
+  --color-warn-tint: var(--qf-warn-tint);
+  --color-bad: var(--qf-bad);
+  --color-bad-tint: var(--qf-bad-tint);
+  --color-idle: var(--qf-idle);
+  --color-idle-tint: var(--qf-idle-tint);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+}
+
+html,
+body {
+  background: var(--qf-paper);
+  color: var(--qf-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Tabular numerals wherever numbers are compared. */
+.num,
+table,
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--qf-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--qf-copper-tint);
+}
+
+/* Restrained motion; disabled entirely for users who ask. */
+.qf-fade {
+  animation: qf-fade 160ms ease-out;
+}
+@keyframes qf-fade {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.qf-flash {
+  animation: qf-flash 900ms ease-out;
+}
+@keyframes qf-flash {
+  from {
+    background-color: var(--qf-ochre-tint);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
