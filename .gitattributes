@@ -1,0 +1,15 @@
+# Normalize text files to LF in the repository; let Git pick native endings for most files.
+* text=auto
+
+# Files executed inside Linux containers or by bash must keep LF everywhere,
+# otherwise a Windows checkout breaks them with CRLF ("$'\r': command not found").
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose.yml text eol=lf
+
+# Binary files: never touch.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
