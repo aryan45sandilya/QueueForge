@@ -31,7 +31,7 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-btn text-btn-ink border border-btn hover:opacity-90",
+  primary: "bg-btn text-btn-ink border border-btn-edge hover:bg-btn-hover",
   secondary: "bg-surface text-ink border border-line-strong hover:border-ink-2",
   ghost: "text-ink-2 hover:bg-sunken hover:text-ink border border-transparent",
   danger: "bg-surface text-bad border border-line-strong hover:border-bad hover:bg-bad-tint",

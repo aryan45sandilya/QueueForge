@@ -58,7 +58,7 @@ export default function WelcomePage() {
             Source
           </a>
           {me.data ? (
-            <Link href="/" className="inline-flex h-8 items-center rounded-[2px] bg-btn px-3.5 font-medium text-btn-ink transition-opacity hover:opacity-90">
+            <Link href="/" className="inline-flex h-8 items-center rounded-[2px] border border-btn-edge bg-btn px-3.5 font-medium text-btn-ink transition-colors hover:bg-btn-hover">
               Open dashboard
             </Link>
           ) : (
@@ -67,7 +67,7 @@ export default function WelcomePage() {
                 Sign in
               </Link>
               {open ? (
-                <Link href="/register" className="inline-flex h-8 items-center rounded-[2px] bg-btn px-3.5 font-medium text-btn-ink transition-opacity hover:opacity-90">
+                <Link href="/register" className="inline-flex h-8 items-center rounded-[2px] border border-btn-edge bg-btn px-3.5 font-medium text-btn-ink transition-colors hover:bg-btn-hover">
                   Create account
                 </Link>
               ) : null}
@@ -91,7 +91,7 @@ export default function WelcomePage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               {open ? (
-                <Link href="/register" className="inline-flex h-10 items-center rounded-[2px] bg-btn px-5 text-[14px] font-medium text-btn-ink transition-[opacity,transform] hover:opacity-90 active:translate-y-px">
+                <Link href="/register" className="inline-flex h-10 items-center rounded-[2px] border border-btn-edge bg-btn px-5 text-[14px] font-medium text-btn-ink transition-[background-color,transform] hover:bg-btn-hover active:translate-y-px">
                   Create a free account
                 </Link>
               ) : (

@@ -2,7 +2,8 @@
 
 /*
  * QueueForge design tokens: an operations console, not a brochure.
- * Neutral graphite surfaces with a single signal-orange accent. Type is Schibsted Grotesk for
+ * Neutral graphite surfaces with a single gold accent (#ecd06f). On light surfaces the pale
+ * gold is a fill only; indicators and accent text use a deeper step of the same hue. Type is Schibsted Grotesk for
  * the interface and JetBrains Mono for everything you read as data (numbers, IDs, states,
  * labels). Status colours are reserved for state and always ship with a text label.
  * Token names are historical ("copper" is the accent) so every component picks up changes here.
@@ -17,24 +18,26 @@
   --qf-ink-2: #3c3f44;
   --qf-muted: #676b71;
 
-  --qf-copper: #ea5a1c; /* accent: indicators, focus, selection */
-  --qf-copper-strong: #b8410f; /* accent as text/link on light surfaces */
-  --qf-copper-tint: #fdebe2;
-  --qf-btn: #1a1b1e; /* primary action */
-  --qf-btn-ink: #ffffff;
+  --qf-copper: #9a7609; /* accent: indicators, focus (deeper step: #ecd06f is 1.5:1 on white) */
+  --qf-copper-strong: #7a5c00; /* accent as text/link on light surfaces */
+  --qf-copper-tint: #fbf3d4;
+  --qf-btn: #ecd06f; /* primary action */
+  --qf-btn-ink: #1c1a12;
+  --qf-btn-edge: #c9a73a; /* the pale fill needs a defined edge on light surfaces */
+  --qf-btn-hover: #e3c352;
 
   --qf-sage: #8b9097;
   --qf-sage-tint: #eceded;
-  --qf-ochre: #c98a12;
-  --qf-ochre-tint: #fbf1d9;
-  --qf-focus: #ea5a1c;
+  --qf-ochre: #c46a10;
+  --qf-ochre-tint: #fdeadb;
+  --qf-focus: #9a7609;
 
   --qf-ok: #1c7a4c;
   --qf-ok-tint: #e2f1e8;
   --qf-run: #0d6f8a;
   --qf-run-tint: #dff0f4;
-  --qf-warn: #8a5800;
-  --qf-warn-tint: #fbf1d9;
+  --qf-warn: #b25400;
+  --qf-warn-tint: #fdeadb;
   --qf-bad: #c0321b;
   --qf-bad-tint: #fbe5e0;
   --qf-idle: #5d6168;
@@ -59,22 +62,24 @@
     --qf-ink: #ecebe6;
     --qf-ink-2: #b9bab6;
     --qf-muted: #80848b;
-    --qf-copper: #ff6a2b;
-    --qf-copper-strong: #ff8a57;
-    --qf-copper-tint: #2a160c;
-    --qf-btn: #ecebe6;
-    --qf-btn-ink: #0d0e10;
+    --qf-copper: #ecd06f;
+    --qf-copper-strong: #f3dd93;
+    --qf-copper-tint: #2a2410;
+    --qf-btn: #ecd06f;
+    --qf-btn-ink: #1c1a12;
+    --qf-btn-edge: #ecd06f;
+    --qf-btn-hover: #f3dd93;
     --qf-sage: #858a91;
     --qf-sage-tint: #1c1f23;
-    --qf-ochre: #e3b24c;
-    --qf-ochre-tint: #2a2210;
-    --qf-focus: #ff6a2b;
+    --qf-ochre: #f59a4a;
+    --qf-ochre-tint: #2c1a0e;
+    --qf-focus: #ecd06f;
     --qf-ok: #5fcb92;
     --qf-ok-tint: #12241a;
     --qf-run: #4fc3e0;
     --qf-run-tint: #0f2229;
-    --qf-warn: #e9bf5a;
-    --qf-warn-tint: #2a2210;
+    --qf-warn: #f59a4a;
+    --qf-warn-tint: #2c1a0e;
     --qf-bad: #ff7d63;
     --qf-bad-tint: #2c1510;
     --qf-idle: #a3a6ab;
@@ -96,22 +101,24 @@
   --qf-ink: #ecebe6;
   --qf-ink-2: #b9bab6;
   --qf-muted: #80848b;
-  --qf-copper: #ff6a2b;
-  --qf-copper-strong: #ff8a57;
-  --qf-copper-tint: #2a160c;
-  --qf-btn: #ecebe6;
-  --qf-btn-ink: #0d0e10;
+  --qf-copper: #ecd06f;
+  --qf-copper-strong: #f3dd93;
+  --qf-copper-tint: #2a2410;
+  --qf-btn: #ecd06f;
+  --qf-btn-ink: #1c1a12;
+  --qf-btn-edge: #ecd06f;
+  --qf-btn-hover: #f3dd93;
   --qf-sage: #858a91;
   --qf-sage-tint: #1c1f23;
-  --qf-ochre: #e3b24c;
-  --qf-ochre-tint: #2a2210;
-  --qf-focus: #ff6a2b;
+  --qf-ochre: #f59a4a;
+  --qf-ochre-tint: #2c1a0e;
+  --qf-focus: #ecd06f;
   --qf-ok: #5fcb92;
   --qf-ok-tint: #12241a;
   --qf-run: #4fc3e0;
   --qf-run-tint: #0f2229;
-  --qf-warn: #e9bf5a;
-  --qf-warn-tint: #2a2210;
+  --qf-warn: #f59a4a;
+  --qf-warn-tint: #2c1a0e;
   --qf-bad: #ff7d63;
   --qf-bad-tint: #2c1510;
   --qf-idle: #a3a6ab;
@@ -137,6 +144,8 @@
   --color-copper-tint: var(--qf-copper-tint);
   --color-btn: var(--qf-btn);
   --color-btn-ink: var(--qf-btn-ink);
+  --color-btn-edge: var(--qf-btn-edge);
+  --color-btn-hover: var(--qf-btn-hover);
   --color-sage: var(--qf-sage);
   --color-sage-tint: var(--qf-sage-tint);
   --color-ochre: var(--qf-ochre);
