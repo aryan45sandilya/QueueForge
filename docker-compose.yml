@@ -2,6 +2,8 @@
 #   cp .env.example .env   # then set QF_SECRET_KEY
 #   docker compose up --build
 # Dashboard: http://localhost:3000   API docs: http://localhost:8000/api/docs
+# Ports are published on 127.0.0.1 only. On a server, put a TLS reverse proxy (e.g. Caddy) in
+# front of port 3000; set QF_BIND_ADDRESS=0.0.0.0 only if you deliberately want direct access.
 
 x-backend: &backend
   build: ./backend
@@ -62,7 +64,7 @@ services:
     <<: *backend
     command: ["queueforge", "api", "--host", "0.0.0.0", "--port", "8000"]
     ports:
-      - "8000:8000"
+      - "${QF_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -100,7 +102,7 @@ services:
         QF_API_URL: http://api:8000
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${QF_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     depends_on:
       - api
 

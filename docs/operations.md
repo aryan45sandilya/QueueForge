@@ -37,6 +37,9 @@ Run migrations once per release, before new API/worker processes start:
    then hand unfinished jobs back to the queue.
 8. **Proxies:** if anything sits in front of the API or web tier, disable response buffering and
    compression for `/api/v1/projects/*/events` (SSE), and allow idle connections of at least 30 s.
+   Docker Compose publishes ports 8000 and 3000 on `127.0.0.1` only (`QF_BIND_ADDRESS`), so the
+   proxy on the same host is the only public entry point. Docker's published ports bypass host
+   firewalls such as `ufw`, which is why the bind address matters.
 
 ## Failure handling reference
 
