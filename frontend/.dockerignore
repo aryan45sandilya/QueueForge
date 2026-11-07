@@ -1,6 +1,8 @@
 node_modules/
 .next/
 .env*
-*.test.ts
-*.test.tsx
+# Patterns are matched from this folder's root, so nested test files need **/.
+**/*.test.ts
+**/*.test.tsx
 src/test/
+vitest.config.ts
