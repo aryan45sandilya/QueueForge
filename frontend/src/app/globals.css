@@ -1,117 +1,125 @@
 @import "tailwindcss";
 
 /*
- * QueueForge design tokens.
- * Palette: paper #F3F0E7, forest ink #202820, oxidized copper #C56D4B, muted sage #87917A,
- * ochre #D7B96D. Neutrals are derived from paper and ink. Copper is reserved for primary
- * actions and selection; copper-strong is used where text sits on or in copper (AA contrast).
- * Status colours are separate from chart series colours and always ship with a text label.
+ * QueueForge design tokens: an operations console, not a brochure.
+ * Neutral graphite surfaces with a single signal-orange accent. Type is Schibsted Grotesk for
+ * the interface and JetBrains Mono for everything you read as data (numbers, IDs, states,
+ * labels). Status colours are reserved for state and always ship with a text label.
+ * Token names are historical ("copper" is the accent) so every component picks up changes here.
  */
 :root {
-  --qf-paper: #f3f0e7;
-  --qf-surface: #fbf9f3;
-  --qf-sunken: #ebe7da;
-  --qf-line: #d9d3c3;
-  --qf-line-strong: #bdb6a3;
-  --qf-ink: #202820;
-  --qf-ink-2: #454d43;
-  --qf-muted: #636a5d;
-  --qf-copper: #c56d4b;
-  --qf-copper-strong: #9f4e2e;
-  --qf-copper-tint: #f2dfd4;
-  --qf-sage: #87917a;
-  --qf-sage-tint: #e3e6dc;
-  --qf-ochre: #d7b96d;
-  --qf-ochre-tint: #f3e8c8;
-  --qf-focus: #c56d4b;
+  --qf-paper: #f3f3f1;
+  --qf-surface: #ffffff;
+  --qf-sunken: #ececea;
+  --qf-line: #e3e3df;
+  --qf-line-strong: #c8c8c2;
+  --qf-ink: #131416;
+  --qf-ink-2: #3c3f44;
+  --qf-muted: #676b71;
 
-  /* status: text colour on tint background */
-  --qf-ok: #2d6a45;
-  --qf-ok-tint: #dcebdf;
-  --qf-run: #00665c;
-  --qf-run-tint: #d5ebe6;
-  --qf-warn: #7a5a10;
-  --qf-warn-tint: #f3e8c8;
-  --qf-bad: #a2361f;
-  --qf-bad-tint: #f5ddd5;
-  --qf-idle: #555c50;
-  --qf-idle-tint: #e6e3d8;
+  --qf-copper: #ea5a1c; /* accent: indicators, focus, selection */
+  --qf-copper-strong: #b8410f; /* accent as text/link on light surfaces */
+  --qf-copper-tint: #fdebe2;
+  --qf-btn: #1a1b1e; /* primary action */
+  --qf-btn-ink: #ffffff;
 
-  /* chart series (validated for CVD separation against --qf-surface) */
-  --qf-series-a: #008571;
-  --qf-series-b: #dc6a3a;
-  --qf-series-ink: #202820;
-  --qf-grid: #e4dfd1;
+  --qf-sage: #8b9097;
+  --qf-sage-tint: #eceded;
+  --qf-ochre: #c98a12;
+  --qf-ochre-tint: #fbf1d9;
+  --qf-focus: #ea5a1c;
+
+  --qf-ok: #1c7a4c;
+  --qf-ok-tint: #e2f1e8;
+  --qf-run: #0d6f8a;
+  --qf-run-tint: #dff0f4;
+  --qf-warn: #8a5800;
+  --qf-warn-tint: #fbf1d9;
+  --qf-bad: #c0321b;
+  --qf-bad-tint: #fbe5e0;
+  --qf-idle: #5d6168;
+  --qf-idle-tint: #ececea;
+
+  /* chart series, validated for colour-vision separation against --qf-surface */
+  --qf-series-a: #00836f;
+  --qf-series-b: #d6492a;
+  --qf-series-ink: #131416;
+  --qf-grid: #ececea;
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --qf-paper: #141813;
-    --qf-surface: #1b201b;
-    --qf-sunken: #111410;
-    --qf-line: #2e352d;
-    --qf-line-strong: #46503f;
-    --qf-ink: #ebe7da;
-    --qf-ink-2: #c9c5b8;
-    --qf-muted: #9aa092;
-    --qf-copper: #e08a66;
-    --qf-copper-strong: #e89a78;
-    --qf-copper-tint: #3a2419;
-    --qf-sage: #8f9a82;
-    --qf-sage-tint: #262d24;
-    --qf-ochre: #d7b96d;
-    --qf-ochre-tint: #362e17;
-    --qf-focus: #e08a66;
-    --qf-ok: #7cc79a;
-    --qf-ok-tint: #1c2e22;
-    --qf-run: #5fc4b4;
-    --qf-run-tint: #15302c;
-    --qf-warn: #e3c574;
-    --qf-warn-tint: #352d15;
-    --qf-bad: #ef8f78;
-    --qf-bad-tint: #3a1f18;
-    --qf-idle: #b4b8aa;
-    --qf-idle-tint: #262b24;
+    --qf-paper: #0d0e10;
+    --qf-surface: #141619;
+    --qf-sunken: #0a0b0c;
+    --qf-line: #22252a;
+    --qf-line-strong: #33373d;
+    --qf-ink: #ecebe6;
+    --qf-ink-2: #b9bab6;
+    --qf-muted: #80848b;
+    --qf-copper: #ff6a2b;
+    --qf-copper-strong: #ff8a57;
+    --qf-copper-tint: #2a160c;
+    --qf-btn: #ecebe6;
+    --qf-btn-ink: #0d0e10;
+    --qf-sage: #858a91;
+    --qf-sage-tint: #1c1f23;
+    --qf-ochre: #e3b24c;
+    --qf-ochre-tint: #2a2210;
+    --qf-focus: #ff6a2b;
+    --qf-ok: #5fcb92;
+    --qf-ok-tint: #12241a;
+    --qf-run: #4fc3e0;
+    --qf-run-tint: #0f2229;
+    --qf-warn: #e9bf5a;
+    --qf-warn-tint: #2a2210;
+    --qf-bad: #ff7d63;
+    --qf-bad-tint: #2c1510;
+    --qf-idle: #a3a6ab;
+    --qf-idle-tint: #1c1f23;
     --qf-series-a: #2ba58e;
-    --qf-series-b: #e06a3a;
-    --qf-series-ink: #ebe7da;
-    --qf-grid: #283027;
+    --qf-series-b: #f0603a;
+    --qf-series-ink: #ecebe6;
+    --qf-grid: #1f2226;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --qf-paper: #141813;
-  --qf-surface: #1b201b;
-  --qf-sunken: #111410;
-  --qf-line: #2e352d;
-  --qf-line-strong: #46503f;
-  --qf-ink: #ebe7da;
-  --qf-ink-2: #c9c5b8;
-  --qf-muted: #9aa092;
-  --qf-copper: #e08a66;
-  --qf-copper-strong: #e89a78;
-  --qf-copper-tint: #3a2419;
-  --qf-sage: #8f9a82;
-  --qf-sage-tint: #262d24;
-  --qf-ochre-tint: #362e17;
-  --qf-focus: #e08a66;
-  --qf-ok: #7cc79a;
-  --qf-ok-tint: #1c2e22;
-  --qf-run: #5fc4b4;
-  --qf-run-tint: #15302c;
-  --qf-warn: #e3c574;
-  --qf-warn-tint: #352d15;
-  --qf-bad: #ef8f78;
-  --qf-bad-tint: #3a1f18;
-  --qf-idle: #b4b8aa;
-  --qf-idle-tint: #262b24;
+  --qf-paper: #0d0e10;
+  --qf-surface: #141619;
+  --qf-sunken: #0a0b0c;
+  --qf-line: #22252a;
+  --qf-line-strong: #33373d;
+  --qf-ink: #ecebe6;
+  --qf-ink-2: #b9bab6;
+  --qf-muted: #80848b;
+  --qf-copper: #ff6a2b;
+  --qf-copper-strong: #ff8a57;
+  --qf-copper-tint: #2a160c;
+  --qf-btn: #ecebe6;
+  --qf-btn-ink: #0d0e10;
+  --qf-sage: #858a91;
+  --qf-sage-tint: #1c1f23;
+  --qf-ochre: #e3b24c;
+  --qf-ochre-tint: #2a2210;
+  --qf-focus: #ff6a2b;
+  --qf-ok: #5fcb92;
+  --qf-ok-tint: #12241a;
+  --qf-run: #4fc3e0;
+  --qf-run-tint: #0f2229;
+  --qf-warn: #e9bf5a;
+  --qf-warn-tint: #2a2210;
+  --qf-bad: #ff7d63;
+  --qf-bad-tint: #2c1510;
+  --qf-idle: #a3a6ab;
+  --qf-idle-tint: #1c1f23;
   --qf-series-a: #2ba58e;
-  --qf-series-b: #e06a3a;
-  --qf-series-ink: #ebe7da;
-  --qf-grid: #283027;
+  --qf-series-b: #f0603a;
+  --qf-series-ink: #ecebe6;
+  --qf-grid: #1f2226;
   color-scheme: dark;
 }
 
@@ -127,6 +135,8 @@
   --color-copper: var(--qf-copper);
   --color-copper-strong: var(--qf-copper-strong);
   --color-copper-tint: var(--qf-copper-tint);
+  --color-btn: var(--qf-btn);
+  --color-btn-ink: var(--qf-btn-ink);
   --color-sage: var(--qf-sage);
   --color-sage-tint: var(--qf-sage-tint);
   --color-ochre: var(--qf-ochre);
@@ -142,9 +152,10 @@
   --color-idle: var(--qf-idle);
   --color-idle-tint: var(--qf-idle-tint);
 
-  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-data), ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* "serif" was the old display face; it now maps to the UI grotesk at display weights. */
+  --font-serif: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -156,12 +167,27 @@ body {
   color: var(--qf-ink);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.45;
+  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
 
 /* Tabular numerals wherever numbers are compared. */
@@ -169,6 +195,15 @@ body {
 table,
 time {
   font-variant-numeric: tabular-nums;
+}
+
+/* Small technical labels: mono, tracked, never shouting. */
+.qf-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--qf-muted);
 }
 
 :focus-visible {
@@ -182,27 +217,28 @@ time {
 
 /* Restrained motion; disabled entirely for users who ask. */
 .qf-fade {
-  animation: qf-fade 160ms ease-out;
+  animation: qf-fade 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes qf-fade {
   from {
     opacity: 0;
-    transform: translateY(2px);
+    transform: translateY(3px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-.qf-flash {
-  animation: qf-flash 900ms ease-out;
+.qf-pulse {
+  animation: qf-pulse 1.6s ease-in-out infinite;
 }
-@keyframes qf-flash {
-  from {
-    background-color: var(--qf-ochre-tint);
+@keyframes qf-pulse {
+  0%,
+  100% {
+    opacity: 1;
   }
-  to {
-    background-color: transparent;
+  50% {
+    opacity: 0.35;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -212,5 +248,6 @@ time {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

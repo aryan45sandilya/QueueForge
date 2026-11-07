@@ -109,7 +109,7 @@ export default function JobDetailPage() {
       <header className="mb-5 flex flex-col gap-3 border-b border-line pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-serif text-[22px] leading-tight font-medium">{job.type}</h1>
+            <h1 className="font-mono text-[21px] leading-tight font-medium tracking-[-0.02em]">{job.type}</h1>
             <StateBadge state={job.state} />
             {job.cancel_requested && job.state === "running" ? <span className="text-xs text-warn">cancellation requested</span> : null}
           </div>

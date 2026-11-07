@@ -317,7 +317,7 @@ export default function SchedulesPage() {
                   <Td className="text-xs">
                     {s.last_job_id ? (
                       <span className="flex flex-wrap items-center gap-1.5">
-                        <Link href={`/jobs/${s.last_job_id}`} className="font-mono text-copper-strong hover:underline">
+                        <Link href={`/jobs/${s.last_job_id}`} className="font-mono text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper">
                           {s.last_job_id.slice(0, 8)}
                         </Link>
                         {s.last_job_state ? <StateBadge state={s.last_job_state} /> : <span className="text-muted">(removed)</span>}

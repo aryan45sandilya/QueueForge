@@ -31,10 +31,10 @@ export function cx(...parts: (string | false | null | undefined)[]): string {
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-copper-strong text-white hover:brightness-110 border border-copper-strong",
-  secondary: "bg-surface text-ink border border-line-strong hover:bg-sunken",
+  primary: "bg-btn text-btn-ink border border-btn hover:opacity-90",
+  secondary: "bg-surface text-ink border border-line-strong hover:border-ink-2",
   ghost: "text-ink-2 hover:bg-sunken hover:text-ink border border-transparent",
-  danger: "bg-surface text-bad border border-line-strong hover:bg-bad-tint",
+  danger: "bg-surface text-bad border border-line-strong hover:border-bad hover:bg-bad-tint",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -52,9 +52,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       className={cx(
-        "inline-flex items-center justify-center gap-1.5 rounded-[3px] font-medium whitespace-nowrap transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3 text-[13px]",
+        "inline-flex items-center justify-center gap-1.5 rounded-[2px] font-medium whitespace-nowrap",
+        "transition-[background-color,border-color,color,opacity,transform] duration-150 active:translate-y-px",
+        "disabled:cursor-not-allowed disabled:opacity-45 disabled:active:translate-y-0",
+        size === "sm" ? "h-7 px-2.5 text-xs" : "h-8 px-3.5 text-[13px]",
         VARIANTS[variant],
         className,
       )}
@@ -80,8 +81,10 @@ export function Spinner({ className }: { className?: string }) {
 // --- form fields --------------------------------------------------------------------------------
 
 const CONTROL =
-  "w-full rounded-[3px] border border-line-strong bg-surface px-2.5 text-[13px] text-ink placeholder:text-muted " +
-  "focus:border-copper focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-bad";
+  "w-full rounded-[2px] border border-line-strong bg-surface px-2.5 text-[13px] text-ink placeholder:text-muted " +
+  "transition-[border-color,box-shadow] duration-150 hover:border-ink-2/50 " +
+  "focus:border-copper focus:shadow-[0_0_0_3px_var(--qf-copper-tint)] focus:outline-none " +
+  "disabled:opacity-60 aria-[invalid=true]:border-bad";
 
 export function Field({
   label,
@@ -100,7 +103,7 @@ export function Field({
 }) {
   return (
     <div className={cx("flex flex-col gap-1", className)}>
-      <label htmlFor={htmlFor} className="text-xs font-medium text-ink-2">
+      <label htmlFor={htmlFor} className="text-[12px] font-medium text-ink-2">
         {label}
       </label>
       {children}
@@ -137,7 +140,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 export function Checkbox({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
   return (
     <label className="inline-flex cursor-pointer items-center gap-2 text-[13px]">
-      <input type="checkbox" className="size-3.5 accent-[var(--qf-copper-strong)]" {...props} />
+      <input type="checkbox" className="size-3.5 accent-[var(--qf-copper)]" {...props} />
       {label}
     </label>
   );
@@ -145,42 +148,38 @@ export function Checkbox({ label, ...props }: InputHTMLAttributes<HTMLInputEleme
 
 // --- status -------------------------------------------------------------------------------------
 
-const STATE_STYLE: Record<string, { cls: string; mark: string }> = {
-  scheduled: { cls: "bg-idle-tint text-idle", mark: "○" },
-  queued: { cls: "bg-sage-tint text-ink-2", mark: "◦" },
-  running: { cls: "bg-run-tint text-run", mark: "▸" },
-  retrying: { cls: "bg-warn-tint text-warn", mark: "↻" },
-  succeeded: { cls: "bg-ok-tint text-ok", mark: "✓" },
-  failed: { cls: "bg-bad-tint text-bad", mark: "✕" },
-  cancelled: { cls: "bg-idle-tint text-idle", mark: "–" },
-  // workers / keys / generic health
-  healthy: { cls: "bg-ok-tint text-ok", mark: "✓" },
-  active: { cls: "bg-ok-tint text-ok", mark: "✓" },
-  draining: { cls: "bg-warn-tint text-warn", mark: "↓" },
-  stale: { cls: "bg-warn-tint text-warn", mark: "!" },
-  expiring: { cls: "bg-warn-tint text-warn", mark: "!" },
-  lost: { cls: "bg-bad-tint text-bad", mark: "✕" },
-  revoked: { cls: "bg-idle-tint text-idle", mark: "–" },
-  expired: { cls: "bg-idle-tint text-idle", mark: "–" },
-  stopped: { cls: "bg-idle-tint text-idle", mark: "■" },
-  paused: { cls: "bg-warn-tint text-warn", mark: "‖" },
-  enabled: { cls: "bg-ok-tint text-ok", mark: "✓" },
-  disabled: { cls: "bg-idle-tint text-idle", mark: "–" },
+// Indicator lamps: a coloured pip beside a plain label. The label carries the meaning, so the
+// state is never conveyed by colour alone.
+const LAMP: Record<string, string> = {
+  scheduled: "border border-idle bg-transparent",
+  queued: "bg-sage",
+  running: "bg-run qf-pulse",
+  retrying: "bg-ochre",
+  succeeded: "bg-ok",
+  failed: "bg-bad",
+  cancelled: "border border-idle bg-transparent",
+  healthy: "bg-ok",
+  active: "bg-ok",
+  enabled: "bg-ok",
+  draining: "bg-ochre",
+  stale: "bg-ochre",
+  expiring: "bg-ochre",
+  paused: "bg-ochre",
+  lost: "bg-bad",
+  revoked: "border border-idle bg-transparent",
+  expired: "border border-idle bg-transparent",
+  stopped: "bg-idle",
+  disabled: "border border-idle bg-transparent",
+  interrupted: "bg-ochre",
+  timed_out: "bg-bad",
 };
 
-/** Status label with a glyph and colour; never colour alone. */
+/** Status shown as an indicator lamp plus its name. */
 export function StateBadge({ state, className }: { state: string; className?: string }) {
-  const style = STATE_STYLE[state] ?? { cls: "bg-idle-tint text-idle", mark: "·" };
   return (
-    <span
-      className={cx(
-        "inline-flex h-5 items-center gap-1 rounded-[3px] px-1.5 font-mono text-[11px] leading-none transition-colors",
-        style.cls,
-        className,
-      )}
-    >
-      <span aria-hidden="true">{style.mark}</span>
-      {state}
+    <span className={cx("inline-flex items-center gap-1.5 font-mono text-[11.5px] leading-none text-ink-2", className)}>
+      <span aria-hidden="true" className={cx("inline-block size-[7px] shrink-0 rounded-[1px]", LAMP[state] ?? "bg-idle")} />
+      {state.replace("_", " ")}
     </span>
   );
 }
@@ -199,10 +198,10 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <header className="mb-5 flex flex-col gap-3 border-b border-line pb-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <h1 className="font-serif text-[22px] leading-tight font-medium tracking-tight">{title}</h1>
-        {description ? <p className="mt-1 max-w-2xl text-[13px] text-muted">{description}</p> : null}
+        <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em]">{title}</h1>
+        {description ? <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-muted">{description}</p> : null}
         {children}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -226,11 +225,11 @@ export function Panel({
   description?: ReactNode;
 }) {
   return (
-    <section className={cx("min-w-0 rounded-[4px] border border-line bg-surface", className)}>
+    <section className={cx("min-w-0 rounded-[3px] border border-line bg-surface", className)}>
       {title || actions ? (
-        <div className="flex min-h-10 items-center justify-between gap-3 border-b border-line px-4 py-2">
+        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-line px-4 py-2.5">
           <div className="min-w-0">
-            {title ? <h2 className="text-[13px] font-semibold">{title}</h2> : null}
+            {title ? <h2 className="text-[13.5px] font-semibold tracking-[-0.005em]">{title}</h2> : null}
             {description ? <p className="text-xs text-muted">{description}</p> : null}
           </div>
           {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
@@ -335,7 +334,7 @@ export function InfoHint({ text }: { text: string }) {
 
 export function TextLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
   return (
-    <Link href={href} className={cx("text-copper-strong underline-offset-2 hover:underline", className)}>
+    <Link href={href} className={cx("text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper", className)}>
       {children}
     </Link>
   );
@@ -539,7 +538,7 @@ export function errorMessage(error: unknown): string {
 export function Th({ children, className, ...rest }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cx("border-b border-line px-3 py-2 text-left text-[11px] font-medium tracking-wide text-muted uppercase", className)}
+      className={cx("border-b border-line bg-paper/40 px-3 py-2 text-left font-mono text-[10.5px] font-normal tracking-[0.04em] text-muted lowercase", className)}
       {...rest}
     >
       {children}

@@ -11,7 +11,7 @@ import { Button, Dialog, Field, Input, Select, Textarea } from "./ui";
 
 export function JobRowLink({ id }: { id: string }) {
   return (
-    <Link href={`/jobs/${id}`} className="font-mono text-xs text-copper-strong hover:underline" title={id}>
+    <Link href={`/jobs/${id}`} className="font-mono text-xs text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper" title={id}>
       {shortId(id)}
     </Link>
   );

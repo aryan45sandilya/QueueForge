@@ -52,7 +52,7 @@ export function WebhookSecretPanel({ projectId }: { projectId: string }) {
       )}
       <p className="mt-3 text-xs text-muted">
         Leaked or shared by mistake?{" "}
-        <button className="text-copper-strong underline-offset-2 hover:underline" onClick={() => setConfirm(true)}>
+        <button className="text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper" onClick={() => setConfirm(true)}>
           Rotate it
         </button>
         . The Developer docs show how to verify signatures.

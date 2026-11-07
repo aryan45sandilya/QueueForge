@@ -138,7 +138,7 @@ def verify_queueforge(raw_body: bytes, header: str, secret: str, tolerance: int 
           <ul className="sticky top-16 flex flex-col gap-1 text-[13px]">
             {SECTIONS.map(([id, label]) => (
               <li key={id}>
-                <a href={`#${id}`} className="text-ink-2 hover:text-copper-strong">
+                <a href={`#${id}`} className="text-ink-2 transition-colors hover:text-ink">
                   {label}
                 </a>
               </li>

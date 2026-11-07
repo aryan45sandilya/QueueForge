@@ -3,35 +3,37 @@ import type { ReactNode } from "react";
 
 import { Logo } from "@/components/icons";
 
-/** Centered card layout shared by sign-in, sign-up and the email-link pages. */
+/** Sign-in, sign-up and email-link pages: a single focused column, no decorative card. */
 export function AuthShell({ title, subtitle, children, footer }: { title: string; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-10">
-      <div className="w-full max-w-[380px]">
-        <Link href="/welcome" className="mb-6 flex w-fit items-center gap-2">
+    <div className="flex min-h-dvh flex-col">
+      <header className="mx-auto flex h-16 w-full max-w-[1180px] items-center px-4 sm:px-8">
+        <Link href="/welcome" className="flex items-center gap-2">
           <Logo className="text-ink" />
-          <span className="font-serif text-lg font-medium">QueueForge</span>
+          <span className="text-[15px] font-semibold tracking-[-0.02em]">queueforge</span>
         </Link>
-        <div className="rounded-[4px] border border-line bg-surface p-5">
-          <h1 className="text-base font-semibold">{title}</h1>
-          {subtitle ? <p className="mt-1 mb-4 text-xs text-muted">{subtitle}</p> : <div className="mb-4" />}
+      </header>
+      <main id="main" className="flex flex-1 items-start justify-center px-4 pt-[9vh] pb-16">
+        <div className="w-full max-w-[380px]">
+          <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.025em]">{title}</h1>
+          {subtitle ? <p className="mt-2 mb-7 text-[13.5px] leading-relaxed text-muted">{subtitle}</p> : <div className="mb-7" />}
           {children}
+          {footer ? <p className="mt-8 border-t border-line pt-4 text-[13px] text-muted">{footer}</p> : null}
         </div>
-        {footer ? <p className="mt-4 text-center text-xs text-muted">{footer}</p> : null}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
 export function Notice({ tone = "info", children }: { tone?: "info" | "error" | "success"; children: ReactNode }) {
   const cls =
     tone === "error"
-      ? "border-bad bg-bad-tint/60 text-bad"
+      ? "border-bad text-bad"
       : tone === "success"
-        ? "border-ok bg-ok-tint/60 text-ok"
-        : "border-ochre bg-ochre-tint/50 text-ink-2";
+        ? "border-ok text-ink"
+        : "border-ochre text-ink-2";
   return (
-    <p role={tone === "error" ? "alert" : "status"} className={`mt-3 border-l-2 px-3 py-2 text-xs ${cls}`}>
+    <p role={tone === "error" ? "alert" : "status"} className={`mt-4 border-l-2 bg-surface py-2 pr-3 pl-3 text-[12.5px] ${cls}`}>
       {children}
     </p>
   );
@@ -39,7 +41,7 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "error" | 
 
 export function AuthLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link className="text-copper-strong hover:underline" href={href}>
+    <Link className="font-medium text-ink underline decoration-line-strong underline-offset-[3px] transition-colors hover:decoration-copper" href={href}>
       {children}
     </Link>
   );

@@ -144,7 +144,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         {error ? <Notice tone="error">{error}</Notice> : null}
         {unverified ? (
           <div className="mt-2 text-xs">
-            <button type="button" className="text-copper-strong underline-offset-2 hover:underline" onClick={resend}>
+            <button type="button" className="text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper" onClick={resend}>
               Email me a new confirmation link
             </button>
             {resent ? <Notice>{resent}</Notice> : null}

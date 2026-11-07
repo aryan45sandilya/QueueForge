@@ -309,10 +309,15 @@ export function Stat({
 }) {
   return (
     <div className="min-w-0 px-4 py-3" title={hint}>
-      <p className="truncate text-[11px] font-medium tracking-wide text-muted uppercase">{label}</p>
-      <p className={cx("mt-1 font-serif text-2xl leading-none num", tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "")}>
+      <p className="qf-label truncate">{label.toLowerCase()}</p>
+      <p
+        className={cx(
+          "mt-2 font-mono text-[26px] leading-none font-medium tracking-[-0.03em] num",
+          tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : "",
+        )}
+      >
         {value}
-        {unit ? <span className="ml-1 font-sans text-xs text-muted">{unit}</span> : null}
+        {unit ? <span className="ml-1 font-sans text-xs tracking-normal text-muted">{unit}</span> : null}
       </p>
       {sub ? <p className="mt-1 truncate text-xs text-muted">{sub}</p> : null}
     </div>

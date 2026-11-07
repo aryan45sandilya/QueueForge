@@ -312,7 +312,7 @@ export default function QueuesPage() {
                         <span className="text-muted">—</span>
                       ) : (
                         w.project_jobs.map((j) => (
-                          <Link key={j.id} href={`/jobs/${j.id}`} className="mr-2 font-mono text-copper-strong hover:underline">
+                          <Link key={j.id} href={`/jobs/${j.id}`} className="mr-2 font-mono text-ink underline decoration-line-strong underline-offset-2 transition-colors hover:decoration-copper">
                             {j.id.slice(0, 8)}
                           </Link>
                         ))
