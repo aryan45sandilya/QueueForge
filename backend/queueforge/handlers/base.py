@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable, Collection, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,6 +41,7 @@ class JobContext:
     db: Database | None
     logger: Any
     progress: dict[str, Any] = field(default_factory=dict)
+    settings: Any = None  # queueforge.config.Settings; Any avoids an import cycle
 
     async def checkpoint(self) -> None:
         """Yield to the event loop so timeouts, cancellation and heartbeats stay responsive."""
@@ -48,6 +49,8 @@ class JobContext:
 
 
 HandlerFn = Callable[[Any, JobContext], Coroutine[Any, Any, dict[str, Any]]]
+# Optional extra validation at submission time that needs instance settings (raises ValidationFailed).
+SubmitCheck = Callable[[Any, Any], None]
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,7 @@ class HandlerSpec:
     default_timeout_seconds: int = 300
     side_effects: str = ""
     demo_only: bool = False
+    submit_check: SubmitCheck | None = None
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -91,8 +95,8 @@ def get_handler(name: str) -> HandlerSpec | None:
     return _REGISTRY.get(name)
 
 
-def all_handlers() -> list[HandlerSpec]:
-    return sorted(_REGISTRY.values(), key=lambda s: s.name)
+def all_handlers(disabled: Collection[str] = ()) -> list[HandlerSpec]:
+    return sorted((s for s in _REGISTRY.values() if s.name not in disabled), key=lambda s: s.name)
 
 
 def validation_details(exc: ValidationError) -> list[dict[str, Any]]:
@@ -102,17 +106,27 @@ def validation_details(exc: ValidationError) -> list[dict[str, Any]]:
     ]
 
 
-def validate_payload(job_type: str, payload: dict[str, Any]) -> BaseModel:
+def validate_payload(job_type: str, payload: dict[str, Any], settings: Any = None) -> BaseModel:
+    """Validate a payload; with `settings`, also apply instance policy (disabled types, checks)."""
+    disabled: Collection[str] = settings.disabled_job_types if settings is not None else ()
     spec = get_handler(job_type)
+    if spec is not None and job_type in disabled:
+        raise ValidationFailed(
+            f"Job type {job_type!r} is disabled on this instance",
+            details=[{"loc": ["type"], "msg": "job type disabled", "type": "value_error"}],
+        )
     if spec is None:
-        known = ", ".join(s.name for s in all_handlers())
+        known = ", ".join(s.name for s in all_handlers(disabled))
         raise ValidationFailed(
             f"Unknown job type {job_type!r}. Registered types: {known}",
             details=[{"loc": ["type"], "msg": "unknown job type", "type": "value_error"}],
         )
     try:
-        return spec.payload_model.model_validate(payload)
+        model = spec.payload_model.model_validate(payload)
     except ValidationError as exc:
         raise ValidationFailed(
             f"Payload is not valid for job type {job_type!r}", details=validation_details(exc)
         ) from exc
+    if settings is not None and spec.submit_check is not None:
+        spec.submit_check(model, settings)
+    return model

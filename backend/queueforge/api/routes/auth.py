@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 
 from queueforge.api.deps import (
     CSRF_COOKIE,
@@ -19,8 +19,23 @@ from queueforge.config import Settings
 from queueforge.db import Database
 from queueforge.dispatch import Dispatcher
 from queueforge.errors import Forbidden
-from queueforge.schemas import ErrorResponse, LoginRequest, MeResponse, RegisterRequest, UserOut
-from queueforge.services import accounts
+from queueforge.schemas import (
+    AcceptedOut,
+    ChangePasswordRequest,
+    DeleteAccountRequest,
+    DeletedAccountOut,
+    EmailRequest,
+    ErrorResponse,
+    LoginRequest,
+    MeResponse,
+    RegisterOut,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenRequest,
+    UserOut,
+)
+from queueforge.services import accounts, identity
+from queueforge.services.email import OutgoingEmail, send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,28 +54,147 @@ def _set_cookies(
     response.set_cookie(CSRF_COOKIE, csrf, httponly=False, **common)  # type: ignore[arg-type]
 
 
+ACCEPTED = (
+    "If an account exists for that address, an email is on its way. "
+    "It can take a few minutes to arrive."
+)
+
+
+def _queue_email(tasks: BackgroundTasks, settings: Settings, message: OutgoingEmail | None) -> None:
+    """Send after the response so timing doesn't reveal whether the account exists."""
+    if message is not None:
+        tasks.add_task(send_email, settings, message)
+
+
+async def _limit_by_ip(
+    request: Request, response: Response, dispatcher: Dispatcher, settings: Settings, action: str
+) -> None:
+    await enforce_rate_limit(
+        dispatcher,
+        response,
+        f"{action}:{client_ip(request, settings)}",
+        settings.login_rate_limit_per_minute,
+    )
+
+
 @router.post(
-    "/register", response_model=UserOut, status_code=status.HTTP_201_CREATED, responses=ERRORS
+    "/register", response_model=RegisterOut, status_code=status.HTTP_201_CREATED, responses=ERRORS
 )
 async def register(
     body: RegisterRequest,
     request: Request,
     response: Response,
+    tasks: BackgroundTasks,
     db: Database = Depends(get_db),
     dispatcher: Dispatcher = Depends(get_dispatcher),
     settings: Settings = Depends(get_settings_dep),
-) -> UserOut:
-    """Create an account. Disabled when QF_ALLOW_REGISTRATION=false."""
+) -> RegisterOut:
+    """Create an account. Disabled when QF_ALLOW_REGISTRATION=false.
+
+    With QF_REQUIRE_EMAIL_VERIFICATION=true, a confirmation link is emailed and the account
+    can't sign in until it is followed.
+    """
     if not settings.allow_registration:
         raise Forbidden("Registration is disabled on this instance")
-    await enforce_rate_limit(
-        dispatcher,
-        response,
-        f"register:{client_ip(request, settings)}",
-        settings.login_rate_limit_per_minute,
+    await _limit_by_ip(request, response, dispatcher, settings, "register")
+    required = settings.require_email_verification
+    user = await accounts.register_user(
+        db, body.email, body.password, body.display_name, verified=not required
     )
-    user = await accounts.register_user(db, body.email, body.password, body.display_name)
-    return UserOut.model_validate(user)
+    if required:
+        _queue_email(tasks, settings, await identity.verification_for_new_user(db, settings, user))
+    return RegisterOut(**UserOut.model_validate(user).model_dump(), verification_required=required)
+
+
+@router.post("/verify-email", response_model=UserOut, responses={400: {"model": ErrorResponse}})
+async def verify_email(body: TokenRequest, db: Database = Depends(get_db)) -> UserOut:
+    """Confirm an email address with the token from the verification email."""
+    return UserOut.model_validate(await identity.verify_email(db, body.token))
+
+
+@router.post(
+    "/resend-verification",
+    response_model=AcceptedOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=ERRORS,
+)
+async def resend_verification(
+    body: EmailRequest,
+    request: Request,
+    response: Response,
+    tasks: BackgroundTasks,
+    db: Database = Depends(get_db),
+    dispatcher: Dispatcher = Depends(get_dispatcher),
+    settings: Settings = Depends(get_settings_dep),
+) -> AcceptedOut:
+    """Send a new verification link. The response is the same whether or not the account exists."""
+    await _limit_by_ip(request, response, dispatcher, settings, "resend-verification")
+    _queue_email(tasks, settings, await identity.resend_verification(db, settings, body.email))
+    return AcceptedOut(message=ACCEPTED)
+
+
+@router.post(
+    "/forgot-password",
+    response_model=AcceptedOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=ERRORS,
+)
+async def forgot_password(
+    body: EmailRequest,
+    request: Request,
+    response: Response,
+    tasks: BackgroundTasks,
+    db: Database = Depends(get_db),
+    dispatcher: Dispatcher = Depends(get_dispatcher),
+    settings: Settings = Depends(get_settings_dep),
+) -> AcceptedOut:
+    """Email a one-hour password reset link. Same response whether or not the account exists."""
+    await _limit_by_ip(request, response, dispatcher, settings, "forgot-password")
+    _queue_email(tasks, settings, await identity.request_password_reset(db, settings, body.email))
+    return AcceptedOut(message=ACCEPTED)
+
+
+@router.post(
+    "/reset-password",
+    response_model=AcceptedOut,
+    responses={400: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+async def reset_password(body: ResetPasswordRequest, db: Database = Depends(get_db)) -> AcceptedOut:
+    """Set a new password with a reset token. Signs the account out of every session."""
+    await identity.reset_password(db, body.token, body.new_password)
+    return AcceptedOut(message="Password updated. Sign in with your new password.")
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT, responses=ERRORS)
+async def change_password(
+    body: ChangePasswordRequest,
+    principal: Principal = Depends(require_user),
+    db: Database = Depends(get_db),
+) -> Response:
+    """Change the password; other sessions are signed out, this one stays."""
+    assert principal.user is not None and principal.session is not None
+    await identity.change_password(
+        db, principal.user.id, principal.session.id, body.current_password, body.new_password
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/delete-account", response_model=DeletedAccountOut, responses=ERRORS)
+async def delete_account(
+    body: DeleteAccountRequest,
+    principal: Principal = Depends(require_user),
+    db: Database = Depends(get_db),
+) -> Response:
+    """Permanently delete the account and every project it alone owns, with all their jobs."""
+    assert principal.user is not None
+    deleted = await identity.delete_account(db, principal.user.id, body.password)
+    response = Response(
+        content=DeletedAccountOut(projects_deleted=deleted).model_dump_json(),
+        media_type="application/json",
+    )
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie(CSRF_COOKIE, path="/")
+    return response
 
 
 @router.post("/login", response_model=MeResponse, responses=ERRORS)

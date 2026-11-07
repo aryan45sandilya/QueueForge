@@ -11,6 +11,7 @@ import { useProject } from "@/lib/session";
 const SECTIONS = [
   ["auth", "Authentication"],
   ["submit", "Submit a job"],
+  ["webhooks", "Webhooks"],
   ["inspect", "Inspect and control"],
   ["events", "Live events"],
   ["errors", "Errors"],
@@ -85,6 +86,33 @@ data: {"project_id": "${project.id}"}
 event: job
 data: {"type": "job.updated", "job": {"id": "…", "state": "running", "type": "notification.send", "attempts": 1, …}}`;
 
+  const webhookExample = `curl -sS -X POST "${base}/jobs" \\
+  -H "Authorization: Bearer $QF_API_KEY" -H "Content-Type: application/json" \\
+  -d '{"type": "http.request", "idempotency_key": "digest-2026-11-07",
+       "payload": {"url": "https://example.com/hooks/daily-digest", "method": "POST",
+                   "headers": {"Authorization": "Bearer <your token>"},
+                   "body": {"date": "2026-11-07"}, "timeout_seconds": 15}}'`;
+
+  const verifyNode = `// Node.js: verify before doing any work (use the raw request body, not re-serialized JSON)
+import crypto from "node:crypto";
+
+export function verifyQueueForge(rawBody, header, secret, toleranceSeconds = 300) {
+  const parts = Object.fromEntries(header.split(",").map((p) => p.split("=")));
+  if (Math.abs(Date.now() / 1000 - Number(parts.t)) > toleranceSeconds) return false;
+  const expected = crypto.createHmac("sha256", secret).update(\`\${parts.t}.\`).update(rawBody).digest("hex");
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(parts.v1 ?? ""));
+}`;
+
+  const verifyPython = `# Python: same check
+import hashlib, hmac, time
+
+def verify_queueforge(raw_body: bytes, header: str, secret: str, tolerance: int = 300) -> bool:
+    parts = dict(p.split("=", 1) for p in header.split(","))
+    if abs(time.time() - int(parts["t"])) > tolerance:
+        return False
+    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts.get("v1", ""))`;
+
   const errorExample = `{
   "error": {
     "code": "validation_error",
@@ -141,6 +169,23 @@ data: {"type": "job.updated", "job": {"id": "…", "state": "running", "type": "
               <CodeBlock>{submit}</CodeBlock>
               <p>Delay a job with <Mono>delay_seconds</Mono> or <Mono>run_at</Mono> (ISO 8601 with offset), and override the retry policy per job:</p>
               <CodeBlock>{delayed}</CodeBlock>
+            </div>
+          </Panel>
+          <Panel title="Webhooks: run your own code">
+            <div id="webhooks" className="flex scroll-mt-16 flex-col gap-2">
+              <p>
+                <Mono>http.request</Mono> calls a URL you own. Network errors, timeouts, <Mono>429</Mono> and <Mono>5xx</Mono> responses are
+                retried with backoff; other <Mono>4xx</Mono> responses fail the job permanently. Redirects aren&apos;t followed, and URLs must
+                resolve to a public address.
+              </p>
+              <CodeBlock>{webhookExample}</CodeBlock>
+              <p>
+                Every call includes <Mono>Idempotency-Key</Mono> (the job ID, the same on every retry), <Mono>X-QueueForge-Attempt</Mono> and{" "}
+                <Mono>X-QueueForge-Signature: t=&lt;unix seconds&gt;,v1=&lt;hex&gt;</Mono>. Verify it with the secret from{" "}
+                <TextLink href="/project">Project &amp; API keys</TextLink> before trusting the request:
+              </p>
+              <CodeBlock>{verifyNode}</CodeBlock>
+              <CodeBlock>{verifyPython}</CodeBlock>
             </div>
           </Panel>
           <Panel title="Inspect and control">

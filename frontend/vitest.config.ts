@@ -10,5 +10,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // jsdom UI tests can be slow on a busy machine; 5 s default caused false failures.
+    testTimeout: 15_000,
   },
 });

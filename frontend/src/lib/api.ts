@@ -19,6 +19,9 @@ export type JobType = Schemas["JobTypeOut"];
 export type BulkResult = Schemas["BulkResult"];
 export type AuditPage = Schemas["Page_AuditOut_"];
 export type SchedulePreview = Schemas["SchedulePreview"];
+export type InstanceInfo = Schemas["InstanceInfo"];
+export type RegisterOut = Schemas["RegisterOut"];
+export type WebhookSecret = Schemas["WebhookSecretOut"];
 
 export interface ErrorItem {
   loc: (string | number)[];

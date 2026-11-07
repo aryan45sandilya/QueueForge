@@ -15,16 +15,17 @@ from datetime import timedelta
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
+from queueforge.config import Settings
 from queueforge.db import Database
 from queueforge.dispatch import QUEUE_KEY_PREFIX, Dispatcher, DispatchUnavailable
-from queueforge.errors import ValidationFailed
+from queueforge.errors import QuotaExceeded, ValidationFailed
 from queueforge.handlers import validate_payload
 from queueforge.lifecycle import ACTIVE_STATES, AttemptOutcome, JobState
 from queueforge.logs import get_logger
 from queueforge.models import AuditEvent, Job, JobAttempt, Project, Queue, Schedule, Session, Worker
 from queueforge.services.common import Actor, AfterCommit, audit, db_now, transition
 from queueforge.services.execution import _schedule_retry_or_fail, build_error
-from queueforge.services.jobs import build_job, transition_record
+from queueforge.services.jobs import build_job, check_daily_quota, transition_record
 from queueforge.services.schedules import next_fire, spec_for
 
 log = get_logger("queueforge.scheduler")
@@ -64,7 +65,7 @@ async def promote_due(db: Database, dispatcher: Dispatcher | None, limit: int = 
 
 
 async def materialize_schedules(
-    db: Database, dispatcher: Dispatcher | None, limit: int = 100
+    db: Database, dispatcher: Dispatcher | None, limit: int = 100, settings: Settings | None = None
 ) -> int:
     """Create jobs for due recurring schedules. One job per (schedule, occurrence)."""
     after = AfterCommit()
@@ -102,7 +103,7 @@ async def materialize_schedules(
                     log.info("schedule_skipped_overlap", schedule_id=str(schedule.id))
                     continue
             try:
-                validate_payload(schedule.job_type, schedule.payload)
+                validate_payload(schedule.job_type, schedule.payload, settings)
             except ValidationFailed as exc:
                 schedule.enabled = False
                 audit(
@@ -115,6 +116,13 @@ async def materialize_schedules(
                     details={"reason": exc.message},
                 )
                 continue
+            if settings is not None:
+                try:
+                    await check_daily_quota(session, project.id, settings)
+                except QuotaExceeded:
+                    schedule.last_skipped_at = now
+                    log.info("schedule_skipped_quota", schedule_id=str(schedule.id))
+                    continue
             job = build_job(
                 spec_for(schedule, queue, project, now, occurrence), project.id, now, SCHEDULER
             )

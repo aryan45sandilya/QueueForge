@@ -345,13 +345,18 @@ class WorkerProcess:
         started = time.perf_counter()
         spec = get_handler(claim.type)
         outcome: Outcome
-        if spec is None:
+        disabled = claim.type in self.settings.disabled_job_types
+        if spec is None or disabled:
             outcome = Outcome(
                 AttemptOutcome.FAILED,
                 error=build_error(
                     None,
                     error_type="UnknownJobType",
-                    message=f"No handler registered for {claim.type!r} on this worker",
+                    message=(
+                        f"Job type {claim.type!r} is disabled on this instance"
+                        if disabled
+                        else f"No handler registered for {claim.type!r} on this worker"
+                    ),
                     retryable=False,
                     attempt=claim.attempt,
                 ),
@@ -381,6 +386,7 @@ class WorkerProcess:
                     max_attempts=claim.max_attempts,
                     db=self.db,
                     logger=jlog,
+                    settings=self.settings,
                 )
                 handler_task: asyncio.Task[dict[str, Any]] = asyncio.create_task(
                     spec.run(payload, ctx)

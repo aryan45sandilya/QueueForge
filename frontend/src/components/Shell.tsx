@@ -114,9 +114,14 @@ function SidebarFooter() {
     <div className="border-t border-line px-3 py-3">
       <p className="truncate text-xs font-medium">{me.user.display_name}</p>
       <p className="truncate text-[11px] text-muted">{me.user.email}</p>
-      <button onClick={() => void logout()} className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink">
-        <IconLogout width={13} height={13} /> Sign out
-      </button>
+      <div className="mt-2 flex items-center gap-3">
+        <Link href="/account" className="text-xs text-muted hover:text-ink">
+          Account
+        </Link>
+        <button onClick={() => void logout()} className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink">
+          <IconLogout width={13} height={13} /> Sign out
+        </button>
+      </div>
     </div>
   );
 }

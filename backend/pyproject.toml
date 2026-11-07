@@ -21,6 +21,7 @@ dependencies = [
   "croniter>=3.0",
   "structlog>=24.4",
   "psutil>=6.0",
+  "httpx>=0.28",
 ]
 
 [project.optional-dependencies]

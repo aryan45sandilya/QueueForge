@@ -25,10 +25,19 @@ hosted queue, and who want to see exactly what happened to each job.
 - **Authenticated API.** Argon2id password hashing; session cookies with CSRF protection for
   the dashboard; project-scoped API keys with scopes, revocation, rotation with a grace period,
   and copy-once secrets (only a keyed hash is stored).
+- **Open sign-up, if you want it.** Optional email verification over SMTP, password reset
+  links, change password, self-service account deletion, and per-account limits (projects,
+  jobs per day, schedules, timeouts, backlog, per-queue concurrency). A public welcome page
+  shows the instance's limits. See
+  [running a public instance](docs/operations.md#running-a-public-instance-open-sign-up).
+- **Webhooks for your own code.** `http.request` calls a URL you own, with retries, an
+  `Idempotency-Key` and an HMAC signature. Calls to private networks are refused (resolved
+  addresses are checked, then pinned), redirects aren't followed, and timeouts and response
+  sizes are capped.
 - **Project isolation.** Every query is project-scoped and authorization is enforced on the
   backend. Cross-project access returns `404`.
 - **Safe handlers.** Jobs name a registered handler and its payload is validated against a
-  Pydantic schema. Submitted code is never executed. Four handlers ship:
+  Pydantic schema. Submitted code is never executed. Five handlers ship: `http.request`,
   `notification.send`, `data.transform` (CSV pipeline), `report.generate`, and
   `bench.synthetic` (for demos and benchmarks).
 - **Lifecycle.** `scheduled → queued → running → succeeded | retrying | failed | cancelled`.
@@ -187,6 +196,9 @@ Main endpoints:
 | Method & path | Purpose |
 |---|---|
 | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | Dashboard accounts and sessions |
+| `POST /auth/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password`, `/change-password`, `/delete-account` | Account lifecycle |
+| `GET /instance` | Public: whether sign-up is open, and this instance's limits |
+| `GET /projects/{id}/webhook-secret`, `POST …/webhook-secret/rotate` | Secret that signs `http.request` calls (owners) |
 | `GET/POST /projects`, `GET/PATCH /projects/{id}` | Projects and their job defaults |
 | `GET/POST /projects/{id}/api-keys`, `POST …/{key}/revoke`, `POST …/{key}/rotate` | API keys (owners) |
 | `GET/POST /projects/{id}/queues`, `PATCH/DELETE …/{queue}` | Queues, concurrency limits, pause |
@@ -332,8 +344,11 @@ Redis, with `queueforge migrate` as a release step.
   pre-empted; its lease expires and the job is re-run elsewhere. Process-isolated execution for
   CPU-bound handlers is future work.
 - **Handlers are built in.** Adding a handler means adding a module and redeploying workers;
-  there is no plugin loading by design. Workers that don't know a job type fail it permanently,
-  so deploy workers before clients submit new types.
+  there is no plugin loading by design. Users of a shared instance run their own logic through
+  `http.request` instead. Workers that don't know a job type fail it permanently, so deploy
+  workers before clients submit new types.
+- **Public instances** have no CAPTCHA, admin dashboard, billing, or bundled terms and privacy
+  pages. Accounts are suspended by setting `users.is_active = false` in the database.
 - **Throughput is bounded by PostgreSQL**, since every claim and outcome is a transaction. Queues
   with concurrency limits also serialize claims on the queue row. Each worker process claims
   serially, so for short jobs scale with more worker processes rather than more slots per

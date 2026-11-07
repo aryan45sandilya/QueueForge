@@ -58,8 +58,28 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(TZ, server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(TZ)
+    email_verified_at: Mapped[datetime | None] = mapped_column(TZ)
 
     __table_args__ = (Index("uq_users_email_lower", text("lower(email)"), unique=True),)
+
+
+class EmailToken(Base):
+    """Single-use token sent by email (verification, password reset). Only a hash is stored."""
+
+    __tablename__ = "email_tokens"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    purpose: Mapped[str] = mapped_column(String(32))
+    token_hash: Mapped[bytes] = mapped_column(LargeBinary(32), unique=True)
+    created_at: Mapped[datetime] = mapped_column(TZ, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(TZ)
+    used_at: Mapped[datetime | None] = mapped_column(TZ)
+
+    __table_args__ = (
+        CheckConstraint("purpose IN ('verify_email', 'reset_password')", name="purpose_valid"),
+    )
 
 
 class Session(Base):
@@ -90,6 +110,8 @@ class Project(Base):
     default_backoff_max_seconds: Mapped[int] = mapped_column(Integer, server_default=text("3600"))
     retention_days: Mapped[int] = mapped_column(SmallInteger, server_default=text("14"))
     max_queued_jobs: Mapped[int] = mapped_column(Integer, server_default=text("100000"))
+    # Shared secret for signing outbound webhook requests; generated on first use.
+    webhook_secret: Mapped[str | None] = mapped_column(String(64))
 
     __table_args__ = (
         CheckConstraint("default_max_attempts BETWEEN 1 AND 25", name="max_attempts_range"),
@@ -164,7 +186,7 @@ class Schedule(Base):
     __tablename__ = "schedules"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    queue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("queues.id", ondelete="RESTRICT"))
+    queue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("queues.id", ondelete="NO ACTION"))
     name: Mapped[str] = mapped_column(String(80))
     job_type: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
@@ -204,7 +226,7 @@ class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
-    queue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("queues.id", ondelete="RESTRICT"))
+    queue_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("queues.id", ondelete="NO ACTION"))
     type: Mapped[str] = mapped_column(String(64))
     state: Mapped[str] = mapped_column(String(16))
     priority: Mapped[int] = mapped_column(SmallInteger, server_default=text("5"))

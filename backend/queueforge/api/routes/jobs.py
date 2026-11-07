@@ -48,9 +48,9 @@ ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 @router.get("/job-types", response_model=list[JobTypeOut])
-async def job_types() -> list[JobTypeOut]:
+async def job_types(settings: Settings = Depends(get_settings_dep)) -> list[JobTypeOut]:
     """Registered handlers with their payload JSON Schemas and a valid example payload."""
-    return [JobTypeOut(**spec.describe()) for spec in all_handlers()]
+    return [JobTypeOut(**spec.describe()) for spec in all_handlers(settings.disabled_job_types)]
 
 
 @router.post(

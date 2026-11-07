@@ -12,20 +12,24 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from croniter import croniter
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from queueforge.config import Settings
 from queueforge.db import Database
 from queueforge.dispatch import Dispatcher
-from queueforge.errors import Conflict, NotFound, ValidationFailed
+from queueforge.errors import Conflict, Forbidden, NotFound, ValidationFailed
 from queueforge.handlers import validate_payload
 from queueforge.models import Job, Project, Queue, Schedule
 from queueforge.schemas import ScheduleCreate, ScheduleOut, SchedulePreview, ScheduleUpdate
 from queueforge.services.common import Actor, AfterCommit, audit, db_now
-from queueforge.services.jobs import NewJobSpec, build_job, check_payload_size, transition_record
-
-_MIN_CRON_GAP = timedelta(seconds=60)
+from queueforge.services.jobs import (
+    NewJobSpec,
+    build_job,
+    check_daily_quota,
+    check_payload_size,
+    transition_record,
+)
 
 
 def validate_trigger(cron_expression: str | None, interval_seconds: int | None) -> None:
@@ -74,9 +78,19 @@ def describe(cron_expression: str | None, interval_seconds: int | None) -> str:
 
 
 def preview(
-    cron_expression: str | None, interval_seconds: int | None, count: int
+    cron_expression: str | None,
+    interval_seconds: int | None,
+    count: int,
+    min_interval_seconds: int = 60,
 ) -> SchedulePreview:
     validate_trigger(cron_expression, interval_seconds)
+    if interval_seconds is not None and interval_seconds < min_interval_seconds:
+        raise ValidationFailed(
+            f"Schedules may run at most once every {min_interval_seconds} seconds on this instance",
+            details=[
+                {"loc": ["interval_seconds"], "msg": "too frequent", "type": "greater_than_equal"}
+            ],
+        )
     now = datetime.now(UTC).replace(microsecond=0)
     first = next_fire(cron_expression, interval_seconds, now)
     runs = [first]
@@ -85,9 +99,14 @@ def preview(
     if (
         cron_expression is not None
         and len(runs) > 1
-        and min(b - a for a, b in itertools.pairwise(runs)) < _MIN_CRON_GAP
+        and min(b - a for a, b in itertools.pairwise(runs))
+        < timedelta(seconds=max(60, min_interval_seconds))
     ):
-        raise ValidationFailed("Schedules may fire at most once per minute")
+        raise ValidationFailed(
+            f"Schedules may run at most once every {max(60, min_interval_seconds)} seconds "
+            "on this instance",
+            details=[{"loc": ["cron_expression"], "msg": "too frequent", "type": "value_error"}],
+        )
     return SchedulePreview(description=describe(cron_expression, interval_seconds), next_runs=runs)
 
 
@@ -160,10 +179,22 @@ async def create_schedule(
     db: Database, settings: Settings, project_id: uuid.UUID, req: ScheduleCreate, actor: Actor
 ) -> ScheduleOut:
     validate_trigger(req.cron_expression, req.interval_seconds)
-    preview(req.cron_expression, req.interval_seconds, 3)
+    preview(req.cron_expression, req.interval_seconds, 3, settings.min_schedule_interval_seconds)
     check_payload_size(req.payload, settings)
-    validate_payload(req.job_type, req.payload)
+    validate_payload(req.job_type, req.payload, settings)
     async with db.transaction() as session:
+        existing = (
+            await session.execute(
+                select(func.count()).select_from(Schedule).where(Schedule.project_id == project_id)
+            )
+        ).scalar_one()
+        if existing >= settings.max_schedules_per_project:
+            raise Forbidden(
+                f"A project can have at most {settings.max_schedules_per_project} schedules "
+                "on this instance",
+                code="quota_exceeded",
+                details={"limit": settings.max_schedules_per_project},
+            )
         queue = await _queue(session, project_id, req.queue)
         now = await db_now(session)
         schedule = Schedule(
@@ -229,12 +260,12 @@ async def update_schedule(
             interval = changes.get("interval_seconds")
             if (cron is None) == (interval is None):
                 raise ValidationFailed("specify exactly one of cron_expression or interval_seconds")
-            preview(cron, interval, 3)
+            preview(cron, interval, 3, settings.min_schedule_interval_seconds)
             schedule.cron_expression = cron.strip() if cron else None
             schedule.interval_seconds = interval
         if "payload" in changes and req.payload is not None:
             check_payload_size(req.payload, settings)
-            validate_payload(schedule.job_type, req.payload)
+            validate_payload(schedule.job_type, req.payload, settings)
             schedule.payload = req.payload
         for field in (
             "name",
@@ -305,6 +336,7 @@ async def trigger_now(
     project: Project,
     schedule_id: uuid.UUID,
     actor: Actor,
+    settings: Settings | None = None,
 ) -> uuid.UUID:
     """Run a schedule immediately, outside its cadence. Doesn't change next_run_at."""
     after = AfterCommit()
@@ -320,7 +352,9 @@ async def trigger_now(
         if row is None:
             raise NotFound("Schedule not found")
         schedule, queue = row
-        validate_payload(schedule.job_type, schedule.payload)
+        validate_payload(schedule.job_type, schedule.payload, settings)
+        if settings is not None:
+            await check_daily_quota(session, project.id, settings)
         now = await db_now(session)
         job = build_job(spec_for(schedule, queue, project, now, None), project.id, now, actor)
         session.add(job)

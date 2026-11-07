@@ -7,6 +7,13 @@ import { fetcher } from "@/lib/api";
 
 import { SubmitJobDialog } from "./jobs";
 
+// Paste instead of typing key by key: faster, and immune to jsdom's missing cursor support in
+// type="email" inputs, which can reorder characters typed during a re-render.
+async function fill(user: ReturnType<typeof userEvent.setup>, el: HTMLElement, text: string) {
+  await user.click(el);
+  await user.paste(text);
+}
+
 const JOB_TYPES = [
   {
     name: "bench.synthetic",
@@ -68,7 +75,7 @@ describe("SubmitJobDialog", () => {
     await screen.findByDisplayValue(/notification.send/);
     const payload = screen.getByLabelText("Payload (JSON)");
     await user.clear(payload);
-    await user.type(payload, "not json");
+    await fill(user, payload, "not json");
     await user.click(screen.getByRole("button", { name: "Submit job" }));
     expect(await screen.findByText(/Payload is not valid JSON/)).toBeInTheDocument();
     expect(postCalls(fetchMock)).toHaveLength(0);

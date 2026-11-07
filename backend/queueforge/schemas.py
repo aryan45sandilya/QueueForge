@@ -69,6 +69,66 @@ class UserOut(ORM):
     email: str
     display_name: str
     created_at: datetime
+    email_verified_at: datetime | None = None
+
+
+class RegisterOut(UserOut):
+    verification_required: bool = Field(
+        description="True when the account must confirm its email before signing in"
+    )
+
+
+class EmailRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: str = Field(min_length=3, max_length=320)
+
+
+class TokenRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=16, max_length=200)
+
+
+class ResetPasswordRequest(TokenRequest):
+    new_password: str = Field(min_length=10, max_length=256)
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=10, max_length=256)
+
+
+class DeleteAccountRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    password: str = Field(min_length=1, max_length=256)
+
+
+class AcceptedOut(BaseModel):
+    message: str
+
+
+class DeletedAccountOut(BaseModel):
+    projects_deleted: int
+
+
+class InstanceLimits(BaseModel):
+    max_projects_per_user: int
+    max_jobs_per_day_per_project: int
+    max_schedules_per_project: int
+    min_schedule_interval_seconds: int
+    max_job_timeout_seconds: int
+    max_queued_jobs_limit: int
+    default_queue_concurrency: int | None
+    max_payload_bytes: int
+    rate_limit_per_minute: int
+
+
+class InstanceInfo(BaseModel):
+    registration_open: bool
+    email_verification_required: bool
+    webhooks_require_https: bool
+    webhooks_allow_private_networks: bool
+    limits: InstanceLimits
 
 
 class MembershipOut(BaseModel):
@@ -500,6 +560,12 @@ class AuditOut(ORM):
     target_id: str | None
     actor: str
     details: dict[str, Any]
+
+
+class WebhookSecretOut(BaseModel):
+    secret: str = Field(
+        description="Shared secret for verifying X-QueueForge-Signature on webhook calls"
+    )
 
 
 class HealthOut(BaseModel):

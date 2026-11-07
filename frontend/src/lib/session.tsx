@@ -52,7 +52,7 @@ export function SessionProvider({ children, fallback }: { children: ReactNode; f
   );
 
   useEffect(() => {
-    if (me.error?.status === 401) router.replace("/login");
+    if (me.error?.status === 401) router.replace("/welcome");
   }, [me.error, router]);
 
   const selectProject = useCallback((id: string) => {

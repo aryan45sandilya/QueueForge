@@ -46,7 +46,10 @@ class Scheduler:
         ):
             pass  # keep draining large backlogs within one tick
         await self._guard(
-            "schedules", lambda: maintenance.materialize_schedules(self.db, self.dispatcher)
+            "schedules",
+            lambda: maintenance.materialize_schedules(
+                self.db, self.dispatcher, settings=self.settings
+            ),
         )
 
     async def reconcile(self) -> None:

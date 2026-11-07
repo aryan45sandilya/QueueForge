@@ -1,6 +1,6 @@
 """Importing this package registers every bundled handler."""
 
-from queueforge.handlers import notification, report, synthetic, transform
+from queueforge.handlers import notification, report, synthetic, transform, webhook
 from queueforge.handlers.base import (
     HandlerSpec,
     JobContext,
@@ -23,4 +23,5 @@ __all__ = [
     "synthetic",
     "transform",
     "validate_payload",
+    "webhook",
 ]

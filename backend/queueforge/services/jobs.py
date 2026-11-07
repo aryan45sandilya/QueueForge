@@ -17,7 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from queueforge.config import Settings
 from queueforge.db import Database
 from queueforge.dispatch import Dispatcher
-from queueforge.errors import BacklogFull, Conflict, NotFound, PayloadTooLarge, ValidationFailed
+from queueforge.errors import (
+    BacklogFull,
+    Conflict,
+    NotFound,
+    PayloadTooLarge,
+    QuotaExceeded,
+    ValidationFailed,
+)
 from queueforge.handlers import get_handler, validate_payload
 from queueforge.lifecycle import (
     BACKLOG_STATES,
@@ -162,6 +169,26 @@ def check_payload_size(payload: dict[str, Any], settings: Settings) -> None:
         )
 
 
+async def check_daily_quota(
+    session: AsyncSession, project_id: uuid.UUID, settings: Settings
+) -> None:
+    """Reject submissions once a project created QF_MAX_JOBS_PER_DAY_PER_PROJECT jobs in 24 h."""
+    limit = settings.max_jobs_per_day_per_project
+    recent = (
+        select(Job.id)
+        .where(Job.project_id == project_id, Job.created_at > func.now() - timedelta(days=1))
+        .limit(limit)
+        .subquery()
+    )
+    count = int((await session.execute(select(func.count()).select_from(recent))).scalar_one())
+    if count >= limit:
+        raise QuotaExceeded(
+            f"This project created {limit} jobs in the last 24 hours, the limit on this instance",
+            details={"limit": limit, "window_hours": 24},
+            headers={"Retry-After": "3600"},
+        )
+
+
 async def submit_job(
     db: Database,
     dispatcher: Dispatcher | None,
@@ -172,7 +199,12 @@ async def submit_job(
 ) -> tuple[uuid.UUID, bool]:
     """Persist a job. Returns (job_id, created). The job is durable before this returns."""
     check_payload_size(req.payload, settings)
-    validate_payload(req.type, req.payload)
+    validate_payload(req.type, req.payload, settings)
+    if req.timeout_seconds is not None and req.timeout_seconds > settings.max_job_timeout_seconds:
+        raise ValidationFailed(
+            f"timeout_seconds may be at most {settings.max_job_timeout_seconds} on this instance",
+            details=[{"loc": ["timeout_seconds"], "msg": "too large", "type": "less_than_equal"}],
+        )
     handler = get_handler(req.type)
     assert handler is not None
     digest = payload_hash(req.type, req.payload)
@@ -185,6 +217,7 @@ async def submit_job(
                 return _idempotent_match(existing, req.type, digest), False
 
         queue = await _get_queue(session, project.id, req.queue)
+        await check_daily_quota(session, project.id, settings)
         if (
             await _backlog_size(session, project.id, project.max_queued_jobs)
             >= project.max_queued_jobs
@@ -223,7 +256,11 @@ async def submit_job(
                 run_at=run_at,
                 max_attempts=req.max_attempts or project.default_max_attempts,
                 timeout_seconds=req.timeout_seconds
-                or min(handler.default_timeout_seconds, project.default_timeout_seconds),
+                or min(
+                    handler.default_timeout_seconds,
+                    project.default_timeout_seconds,
+                    settings.max_job_timeout_seconds,
+                ),
                 backoff_base_seconds=base,
                 backoff_max_seconds=ceiling,
                 idempotency_key=req.idempotency_key,

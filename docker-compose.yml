@@ -9,6 +9,11 @@ x-backend: &backend
   build: ./backend
   image: queueforge-backend:local
   restart: unless-stopped
+  # Every QF_* setting in .env reaches the containers; the entries below override it so the
+  # services always use the in-network database and Redis addresses.
+  env_file:
+    - path: .env
+      required: false
   environment: &backend-env
     QF_ENV: ${QF_ENV:-development}
     QF_DATABASE_URL: postgresql+asyncpg://queueforge:${POSTGRES_PASSWORD:-queueforge}@postgres:5432/queueforge

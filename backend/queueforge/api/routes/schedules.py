@@ -41,10 +41,17 @@ ERRORS: dict[int | str, dict[str, Any]] = {
 
 @router.post("/schedules/preview", response_model=SchedulePreview, responses=ERRORS)
 async def preview(
-    body: SchedulePreviewRequest, _: Principal = Depends(get_principal)
+    body: SchedulePreviewRequest,
+    _: Principal = Depends(get_principal),
+    settings: Settings = Depends(get_settings_dep),
 ) -> SchedulePreview:
     """Validate a cron expression or interval and list its next run times (UTC)."""
-    return svc.preview(body.cron_expression, body.interval_seconds, body.count)
+    return svc.preview(
+        body.cron_expression,
+        body.interval_seconds,
+        body.count,
+        settings.min_schedule_interval_seconds,
+    )
 
 
 @router.get("/projects/{project_id}/schedules", response_model=list[ScheduleOut], responses=ERRORS)
@@ -110,7 +117,10 @@ async def trigger(
     access: ProjectAccess = Depends(project_access("schedules:write")),
     db: Database = Depends(get_db),
     dispatcher: Dispatcher = Depends(get_dispatcher),
+    settings: Settings = Depends(get_settings_dep),
 ) -> JobDetail:
     """Run the schedule's job now, without changing its cadence."""
-    job_id = await svc.trigger_now(db, dispatcher, access.project, schedule_id, access.actor)
+    job_id = await svc.trigger_now(
+        db, dispatcher, access.project, schedule_id, access.actor, settings
+    )
     return await job_svc.get_job_detail(db, access.project.id, job_id)

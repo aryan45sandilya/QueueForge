@@ -41,6 +41,39 @@ Run migrations once per release, before new API/worker processes start:
    proxy on the same host is the only public entry point. Docker's published ports bypass host
    firewalls such as `ufw`, which is why the bind address matters.
 
+## Running a public instance (open sign-up)
+
+A public instance lets anyone create an account and run jobs. Users can't add code to your
+server, so they work through `http.request`, which calls URLs they own. Settings to review in
+`.env` (`.env.example` lists suggested public values next to each one):
+
+1. **Email.** Set `QF_SMTP_HOST`, `QF_SMTP_PORT`, `QF_SMTP_USERNAME`, `QF_SMTP_PASSWORD`,
+   `QF_SMTP_FROM` and `QF_SMTP_SECURITY` for any SMTP provider, plus `QF_PUBLIC_URL` (the
+   dashboard's https address, used in email links). Then set `QF_REQUIRE_EMAIL_VERIFICATION=true`.
+   Production refuses to start with verification on and no SMTP host. Without SMTP, production
+   never logs reset links.
+2. **Limits.** Lower `QF_MAX_PROJECTS_PER_USER`, `QF_MAX_JOBS_PER_DAY_PER_PROJECT`,
+   `QF_MAX_SCHEDULES_PER_PROJECT`, `QF_MAX_JOB_TIMEOUT_SECONDS` and the backlog caps, and set
+   `QF_DEFAULT_QUEUE_CONCURRENCY` (for example 2) so one account can't occupy every worker slot.
+   `GET /api/v1/instance` publishes these limits, and the welcome page shows them.
+3. **Job types.** Set `QF_DISABLED_JOB_TYPES=bench.synthetic`. The synthetic job only sleeps and
+   is meant for benchmarks.
+4. **Webhooks.** Keep `QF_WEBHOOK_ALLOW_PRIVATE_NETWORKS=false`. Workers then refuse to call
+   loopback, private, link-local, metadata and reserved addresses, and they connect to the IP
+   they checked, so DNS changes can't redirect a call inward. Set `QF_WEBHOOK_REQUIRE_HTTPS=true`.
+   Workers still make outbound requests chosen by users; give them no credentials or network
+   access they don't need.
+5. **Rate limits** (`QF_RATE_LIMIT_PER_MINUTE`, `QF_LOGIN_RATE_LIMIT_PER_MINUTE`) apply per API
+   key, per user and per IP for sign-up, login and email endpoints. Set
+   `QF_TRUST_PROXY_HEADERS=true` behind your reverse proxy so limits see real client IPs.
+6. **Legal and abuse.** Publish terms of service and a privacy policy that fit your
+   jurisdiction; QueueForge does not include them. To stop an account immediately, set
+   `users.is_active = false` for it. Its sessions and API keys stop working at once.
+
+Users manage their own account under **Account**: change password (signs out other devices)
+and delete account (removes every project they alone own). Forgotten passwords are reset from
+the sign-in page by email.
+
 ## Failure handling reference
 
 See the failure-mode table in [architecture.md](architecture.md#failure-modes). In short:

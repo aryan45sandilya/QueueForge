@@ -25,7 +25,15 @@ from queueforge.db import Database
 from queueforge.dispatch import Dispatcher, DispatchUnavailable
 from queueforge.lifecycle import JobState
 from queueforge.models import Job, Worker
-from queueforge.schemas import ErrorResponse, HealthOut, MetricsOverview, WorkerJobOut, WorkerOut
+from queueforge.schemas import (
+    ErrorResponse,
+    HealthOut,
+    InstanceInfo,
+    InstanceLimits,
+    MetricsOverview,
+    WorkerJobOut,
+    WorkerOut,
+)
 from queueforge.services import metrics
 
 router = APIRouter()
@@ -175,6 +183,28 @@ async def job_events(
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
+    )
+
+
+@router.get("/instance", response_model=InstanceInfo, tags=["instance"])
+async def instance(settings: Settings = Depends(get_settings_dep)) -> InstanceInfo:
+    """Public facts about this instance: whether sign-up is open, and the per-account limits."""
+    return InstanceInfo(
+        registration_open=settings.allow_registration,
+        email_verification_required=settings.require_email_verification,
+        webhooks_require_https=settings.webhook_require_https,
+        webhooks_allow_private_networks=settings.webhook_allow_private_networks,
+        limits=InstanceLimits(
+            max_projects_per_user=settings.max_projects_per_user,
+            max_jobs_per_day_per_project=settings.max_jobs_per_day_per_project,
+            max_schedules_per_project=settings.max_schedules_per_project,
+            min_schedule_interval_seconds=settings.min_schedule_interval_seconds,
+            max_job_timeout_seconds=settings.max_job_timeout_seconds,
+            max_queued_jobs_limit=settings.max_queued_jobs_limit,
+            default_queue_concurrency=settings.default_queue_concurrency,
+            max_payload_bytes=settings.max_payload_bytes,
+            rate_limit_per_minute=settings.rate_limit_per_minute,
+        ),
     )
 
 

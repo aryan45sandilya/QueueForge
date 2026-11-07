@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -44,13 +45,17 @@ from queueforge.services.common import Actor, audit, db_now
 # --- users and sessions ---------------------------------------------------------------------
 
 
-async def register_user(db: Database, email: str, password: str, display_name: str) -> User:
+async def register_user(
+    db: Database, email: str, password: str, display_name: str, *, verified: bool = True
+) -> User:
+    """Create an account. `verified=False` leaves the email unconfirmed (public sign-up)."""
     async with db.transaction() as session:
         user = User(
             id=uuid.uuid4(),
             email=email.strip(),
             display_name=display_name.strip(),
             password_hash=hash_password(password),
+            email_verified_at=await db_now(session) if verified else None,
         )
         try:
             async with session.begin_nested():
@@ -90,6 +95,12 @@ async def login(
             or not user.is_active
         ):
             raise Unauthorized("Invalid email or password")
+        # Checked only after the password, so this can't be used to probe which emails exist.
+        if settings.require_email_verification and user.email_verified_at is None:
+            raise Forbidden(
+                "Confirm your email address before signing in. Check your inbox for the link.",
+                code="email_not_verified",
+            )
         if password_needs_rehash(user.password_hash):
             user.password_hash = hash_password(password)
         now = await db_now(session)
@@ -174,9 +185,28 @@ def project_out(project: Project, role: str | None) -> ProjectOut:
     return out
 
 
-async def create_project(db: Database, user: User, req: ProjectCreate) -> ProjectOut:
+async def create_project(
+    db: Database, user: User, req: ProjectCreate, settings: Settings | None = None
+) -> ProjectOut:
     async with db.transaction() as session:
+        if settings is not None:
+            owned = (
+                await session.execute(
+                    select(func.count())
+                    .select_from(ProjectMember)
+                    .where(ProjectMember.user_id == user.id, ProjectMember.role == "owner")
+                )
+            ).scalar_one()
+            if owned >= settings.max_projects_per_user:
+                raise Forbidden(
+                    f"You can own at most {settings.max_projects_per_user} projects on this instance",
+                    code="quota_exceeded",
+                    details={"limit": settings.max_projects_per_user},
+                )
         project = Project(id=uuid.uuid4(), slug=req.slug, name=req.name)
+        if settings is not None:
+            project.max_queued_jobs = settings.default_max_queued_jobs
+            project.default_timeout_seconds = min(300, settings.max_job_timeout_seconds)
         try:
             async with session.begin_nested():
                 session.add(project)
@@ -184,7 +214,14 @@ async def create_project(db: Database, user: User, req: ProjectCreate) -> Projec
         except IntegrityError as exc:
             raise Conflict(f"Project slug {req.slug!r} is already taken") from exc
         session.add(ProjectMember(project_id=project.id, user_id=user.id, role="owner"))
-        session.add(Queue(project_id=project.id, name="default", description="Default queue"))
+        session.add(
+            Queue(
+                project_id=project.id,
+                name="default",
+                description="Default queue",
+                concurrency_limit=settings.default_queue_concurrency if settings else None,
+            )
+        )
         audit(
             session,
             project_id=project.id,
@@ -199,9 +236,26 @@ async def create_project(db: Database, user: User, req: ProjectCreate) -> Projec
 
 
 async def update_project(
-    db: Database, project_id: uuid.UUID, req: ProjectSettingsUpdate, actor: Actor
+    db: Database,
+    project_id: uuid.UUID,
+    req: ProjectSettingsUpdate,
+    actor: Actor,
+    settings: Settings | None = None,
 ) -> ProjectOut:
     changes = req.model_dump(exclude_unset=True, exclude_none=True)
+    if settings is not None:
+        limits = {
+            "max_queued_jobs": settings.max_queued_jobs_limit,
+            "default_timeout_seconds": settings.max_job_timeout_seconds,
+        }
+        for key, limit in limits.items():
+            if key in changes and changes[key] > limit:
+                raise ValidationFailed(
+                    f"{key} may be at most {limit} on this instance",
+                    details=[
+                        {"loc": [key], "msg": f"must be <= {limit}", "type": "less_than_equal"}
+                    ],
+                )
     async with db.transaction() as session:
         project = (
             await session.execute(select(Project).where(Project.id == project_id).with_for_update())
@@ -223,6 +277,29 @@ async def update_project(
             details={"changes": {k: {"from": before[k], "to": v} for k, v in changes.items()}},
         )
     return project_out(project, "owner")
+
+
+async def webhook_secret(
+    db: Database, project_id: uuid.UUID, *, rotate: bool = False, actor: Actor | None = None
+) -> str:
+    """Return the project's webhook signing secret, creating (or replacing) it when needed."""
+    async with db.transaction() as session:
+        project = (
+            await session.execute(select(Project).where(Project.id == project_id).with_for_update())
+        ).scalar_one()
+        if rotate or not project.webhook_secret:
+            project.webhook_secret = "whsec_" + secrets.token_urlsafe(32)
+            if rotate and actor is not None:
+                audit(
+                    session,
+                    project_id=project_id,
+                    actor=actor,
+                    action="project.webhook_secret_rotated",
+                    target_type="project",
+                    target_id=str(project_id),
+                )
+        secret: str = project.webhook_secret
+    return secret
 
 
 async def get_membership(
@@ -452,8 +529,20 @@ async def list_queues(
     return out
 
 
+def capped_concurrency(requested: int | None, settings: Settings | None) -> int | None:
+    """On instances with QF_DEFAULT_QUEUE_CONCURRENCY, no queue may be unlimited or exceed it."""
+    cap = settings.default_queue_concurrency if settings else None
+    if cap is None:
+        return requested
+    return cap if requested is None else min(requested, cap)
+
+
 async def create_queue(
-    db: Database, project_id: uuid.UUID, req: QueueCreate, actor: Actor
+    db: Database,
+    project_id: uuid.UUID,
+    req: QueueCreate,
+    actor: Actor,
+    settings: Settings | None = None,
 ) -> QueueOut:
     async with db.transaction() as session:
         queue = Queue(
@@ -461,7 +550,7 @@ async def create_queue(
             project_id=project_id,
             name=req.name,
             description=req.description,
-            concurrency_limit=req.concurrency_limit,
+            concurrency_limit=capped_concurrency(req.concurrency_limit, settings),
             paused=False,
         )
         try:
@@ -484,7 +573,12 @@ async def create_queue(
 
 
 async def update_queue(
-    db: Database, project_id: uuid.UUID, queue_id: uuid.UUID, req: QueueUpdate, actor: Actor
+    db: Database,
+    project_id: uuid.UUID,
+    queue_id: uuid.UUID,
+    req: QueueUpdate,
+    actor: Actor,
+    settings: Settings | None = None,
 ) -> QueueOut:
     async with db.transaction() as session:
         queue = (
@@ -500,9 +594,9 @@ async def update_queue(
         if req.description is not None:
             queue.description = req.description
         if req.clear_concurrency_limit:
-            queue.concurrency_limit = None
+            queue.concurrency_limit = capped_concurrency(None, settings)
         elif req.concurrency_limit is not None:
-            queue.concurrency_limit = req.concurrency_limit
+            queue.concurrency_limit = capped_concurrency(req.concurrency_limit, settings)
         if req.paused is not None:
             queue.paused = req.paused
         audit(

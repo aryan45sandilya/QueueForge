@@ -33,6 +33,7 @@ from queueforge.schemas import (
     QueueCreate,
     QueueOut,
     QueueUpdate,
+    WebhookSecretOut,
 )
 from queueforge.services import accounts
 
@@ -66,10 +67,11 @@ async def create_project(
     body: ProjectCreate,
     principal: Principal = Depends(require_user),
     db: Database = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
     """Create a project; the caller becomes its owner and a `default` queue is created."""
     assert principal.user is not None
-    return await accounts.create_project(db, principal.user, body)
+    return await accounts.create_project(db, principal.user, body, settings)
 
 
 @router.get("/projects/{project_id}", response_model=ProjectOut, responses=ERRORS)
@@ -82,9 +84,34 @@ async def update_project(
     body: ProjectSettingsUpdate,
     access: ProjectAccess = Depends(project_access(owner=True)),
     db: Database = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
 ) -> ProjectOut:
     """Update project name and job defaults (retry policy, timeout, retention, backlog cap). Owners only."""
-    return await accounts.update_project(db, access.project.id, body, access.actor)
+    return await accounts.update_project(db, access.project.id, body, access.actor, settings)
+
+
+@router.get(
+    "/projects/{project_id}/webhook-secret", response_model=WebhookSecretOut, responses=ERRORS
+)
+async def get_webhook_secret(
+    access: ProjectAccess = Depends(project_access(owner=True)), db: Database = Depends(get_db)
+) -> WebhookSecretOut:
+    """The secret used to sign this project's `http.request` webhook calls (created on first use)."""
+    return WebhookSecretOut(secret=await accounts.webhook_secret(db, access.project.id))
+
+
+@router.post(
+    "/projects/{project_id}/webhook-secret/rotate",
+    response_model=WebhookSecretOut,
+    responses=ERRORS,
+)
+async def rotate_webhook_secret(
+    access: ProjectAccess = Depends(project_access(owner=True)), db: Database = Depends(get_db)
+) -> WebhookSecretOut:
+    """Replace the signing secret. Calls made after this are signed with the new secret."""
+    return WebhookSecretOut(
+        secret=await accounts.webhook_secret(db, access.project.id, rotate=True, actor=access.actor)
+    )
 
 
 # --- API keys -------------------------------------------------------------------------------
@@ -167,8 +194,9 @@ async def create_queue(
     body: QueueCreate,
     access: ProjectAccess = Depends(project_access(owner=True)),
     db: Database = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
 ) -> QueueOut:
-    return await accounts.create_queue(db, access.project.id, body, access.actor)
+    return await accounts.create_queue(db, access.project.id, body, access.actor, settings)
 
 
 @router.patch("/projects/{project_id}/queues/{queue_id}", response_model=QueueOut, responses=ERRORS)
@@ -177,9 +205,12 @@ async def update_queue(
     body: QueueUpdate,
     access: ProjectAccess = Depends(project_access(owner=True)),
     db: Database = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
 ) -> QueueOut:
     """Change description, concurrency limit (global across workers) or pause/resume dispatch."""
-    return await accounts.update_queue(db, access.project.id, queue_id, body, access.actor)
+    return await accounts.update_queue(
+        db, access.project.id, queue_id, body, access.actor, settings
+    )
 
 
 @router.delete(

@@ -23,8 +23,13 @@ _INSECURE_SECRETS = {
 
 
 class Settings(BaseSettings):
+    # env_ignore_empty: `QF_SMTP_HOST=` in a .env file means "use the default", not "".
     model_config = SettingsConfigDict(
-        env_prefix="QF_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_prefix="QF_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_ignore_empty=True,
     )
 
     env: Literal["development", "test", "production"] = "development"
@@ -58,6 +63,33 @@ class Settings(BaseSettings):
     reconcile_grace_seconds: float = Field(default=10.0, ge=0)
     retention_interval_seconds: float = Field(default=300.0, gt=0)
 
+    # Accounts and email. Links in emails point at public_url (the dashboard origin).
+    public_url: str = "http://localhost:3000"
+    require_email_verification: bool = False
+    smtp_host: str | None = None  # unset: emails are written to the log instead of sent
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str = "QueueForge <no-reply@localhost>"
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
+    smtp_timeout_seconds: float = Field(default=10.0, gt=0)
+
+    # Per-account limits. Defaults suit a private instance; tighten them for public sign-up.
+    max_projects_per_user: int = Field(default=10, ge=1)
+    max_jobs_per_day_per_project: int = Field(default=1_000_000, ge=1)
+    max_schedules_per_project: int = Field(default=100, ge=1)
+    min_schedule_interval_seconds: int = Field(default=60, ge=10)
+    max_job_timeout_seconds: int = Field(default=86_400, ge=1, le=86_400)
+    default_max_queued_jobs: int = Field(default=100_000, ge=1)
+    max_queued_jobs_limit: int = Field(default=10_000_000, ge=1)
+    default_queue_concurrency: int | None = Field(default=None, ge=1, le=1000)
+    disabled_job_types: Annotated[list[str], NoDecode] = []
+
+    # Outbound webhooks (`http.request` jobs)
+    webhook_allow_private_networks: bool = False
+    webhook_require_https: bool = False
+    webhook_max_timeout_seconds: int = Field(default=30, ge=1, le=300)
+
     # Logging
     log_level: str = "INFO"
     log_format: Literal["json", "console"] = "console"
@@ -66,7 +98,7 @@ class Settings(BaseSettings):
     demo_email: str = "demo@queueforge.dev"
     demo_password: str = "queueforge-demo"  # noqa: S105 - local demo seed only; seed refuses production
 
-    @field_validator("cors_origins", "worker_queues", mode="before")
+    @field_validator("cors_origins", "worker_queues", "disabled_job_types", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
         if isinstance(value, str):
@@ -94,6 +126,14 @@ class Settings(BaseSettings):
                 raise ValueError("QF_SECRET_KEY must be set to a unique random value in production")
             if "*" in self.cors_origins:
                 raise ValueError("QF_CORS_ORIGINS may not contain '*' in production")
+            if self.require_email_verification and not self.smtp_host:
+                raise ValueError(
+                    "QF_REQUIRE_EMAIL_VERIFICATION needs QF_SMTP_HOST in production; "
+                    "otherwise nobody can receive the verification email"
+                )
+        if self.default_max_queued_jobs > self.max_queued_jobs_limit:
+            raise ValueError("QF_DEFAULT_MAX_QUEUED_JOBS must not exceed QF_MAX_QUEUED_JOBS_LIMIT")
+        self.public_url = self.public_url.rstrip("/")
         if self.heartbeat_seconds * 2 >= self.lease_seconds:
             raise ValueError("QF_HEARTBEAT_SECONDS must be less than half of QF_LEASE_SECONDS")
         return self

@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { CreateProjectForm } from "@/components/CreateProjectForm";
 import { IconPlus } from "@/components/icons";
 import { SecretReveal } from "@/components/SecretReveal";
+import { WebhookSecretPanel } from "@/components/WebhookSecretPanel";
 import {
   Button,
   Checkbox,
@@ -299,6 +300,7 @@ export default function ProjectPage() {
               </>
             )}
           </Panel>
+          {isOwner ? <WebhookSecretPanel projectId={project.id} /> : null}
         </div>
       </div>
 
